@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Introduction to Neural Networks — AI Research Blog</title>
+    <style>body { font-family: sans-serif; }</style>
+    <script>console.log("analytics");</script>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/blog">Blog</a>
+            <a href="/about">About</a>
+            <a href="/contact">Contact</a>
+        </nav>
+    </header>
+
+    <div class="cookie-banner">
+        <p>We use cookies. <button>Accept</button></p>
+    </div>
+
+    <main>
+        <article>
+            <h1>Introduction to Neural Networks</h1>
+            <p class="meta">Published on March 15, 2026 by Dr. Jane Smith</p>
+
+            <p>Neural networks are computing systems inspired by biological neural networks
+            that constitute animal brains. They are a subset of machine learning and are
+            at the heart of deep learning algorithms.</p>
+
+            <h2>Architecture</h2>
+            <p>A neural network consists of layers of interconnected nodes or neurons.
+            Each connection can transmit a signal from one neuron to another.</p>
+
+            <figure>
+                <img src="neural-net.png" alt="Neural network architecture diagram">
+                <figcaption>Figure 1: A simple feedforward neural network with one hidden layer.</figcaption>
+            </figure>
+
+            <h2>Types of Neural Networks</h2>
+            <ul>
+                <li>Feedforward Neural Networks (FNN)</li>
+                <li>Convolutional Neural Networks (CNN)</li>
+                <li>Recurrent Neural Networks (RNN)</li>
+                <li>Transformers</li>
+                <li>Generative Adversarial Networks (GAN)</li>
+            </ul>
+
+            <h3>Performance Comparison</h3>
+            <table>
+                <tr>
+                    <th>Network Type</th>
+                    <th>Best For</th>
+                    <th>Parameters</th>
+                    <th>Training Time</th>
+                </tr>
+                <tr>
+                    <td>FNN</td>
+                    <td>Tabular data</td>
+                    <td>~1M</td>
+                    <td>Minutes</td>
+                </tr>
+                <tr>
+                    <td>CNN</td>
+                    <td>Image recognition</td>
+                    <td>~25M</td>
+                    <td>Hours</td>
+                </tr>
+                <tr>
+                    <td>Transformer</td>
+                    <td>NLP, Multimodal</td>
+                    <td>~175B</td>
+                    <td>Weeks</td>
+                </tr>
+            </table>
+
+            <h2>Code Example</h2>
+            <p>Here's a simple neural network using PyTorch:</p>
+            <pre><code class="language-python">import torch
+import torch.nn as nn
+
+class SimpleNet(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super().__init__()
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        return x
+
+model = SimpleNet(784, 128, 10)
+print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")
+</code></pre>
+
+            <blockquote>
+                "Deep learning allows computational models composed of multiple processing layers
+                to learn representations of data with multiple levels of abstraction."
+                — Yann LeCun, Yoshua Bengio, Geoffrey Hinton
+            </blockquote>
+
+            <h2>References</h2>
+            <ol>
+                <li>LeCun, Y., Bengio, Y., & Hinton, G. (2015). Deep learning. Nature, 521(7553).</li>
+                <li>Goodfellow, I., Bengio, Y., & Courville, A. (2016). Deep Learning. MIT Press.</li>
+            </ol>
+
+            <div class="article-actions">
+                <form action="/search" method="get">
+                    <input type="text" name="q" placeholder="Search articles...">
+                    <button type="submit">Search</button>
+                </form>
+                <a href="/download/neural-networks.pdf" download>Download PDF</a>
+                <a href="/next-article">Next Article →</a>
+            </div>
+        </article>
+    </main>
+
+    <aside class="sidebar">
+        <h3>Related Articles</h3>
+        <ul>
+            <li><a href="/cnn">Understanding CNNs</a></li>
+            <li><a href="/transformers">Transformers Explained</a></li>
+        </ul>
+    </aside>
+
+    <div class="newsletter-subscribe">
+        <p>Subscribe to our newsletter!</p>
+        <input type="email" placeholder="Enter your email">
+        <button>Subscribe</button>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 AI Research Blog. All rights reserved.</p>
+        <nav>
+            <a href="/privacy">Privacy Policy</a>
+            <a href="/terms">Terms of Service</a>
+        </nav>
+    </footer>
+</body>
+</html>

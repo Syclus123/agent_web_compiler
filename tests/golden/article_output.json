@@ -1,0 +1,1015 @@
+{
+  "schema_version": "0.1.0",
+  "doc_id": "sha256:1db406a272426251",
+  "source_type": "html",
+  "source_url": null,
+  "source_file": null,
+  "title": "Introduction to Neural Networks — AI Research Blog",
+  "lang": null,
+  "fetched_at": "2026-03-30T15:52:46.530639Z",
+  "compiled_at": "2026-03-30T15:52:46.530284Z",
+  "blocks": [
+    {
+      "id": "b_000",
+      "type": "heading",
+      "text": "Introduction to Neural Networks",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks"
+      ],
+      "order": 0,
+      "importance": 0.9,
+      "level": 1,
+      "metadata": {
+        "level": 1
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > h1",
+          "element_tag": "h1",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            78,
+            109
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_001",
+      "type": "paragraph",
+      "text": "Published on March 15, 2026 by Dr. Jane Smith",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks"
+      ],
+      "order": 1,
+      "importance": 0.7,
+      "level": null,
+      "metadata": {},
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > p.meta:nth-child(1)",
+          "element_tag": "p",
+          "element_id": null,
+          "element_classes": [
+            "meta"
+          ]
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            670,
+            715
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_002",
+      "type": "paragraph",
+      "text": "Neural networks are computing systems inspired by biological neural networks that constitute animal brains. They are a subset of machine learning and are at the heart of deep learning algorithms.",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks"
+      ],
+      "order": 2,
+      "importance": 0.7,
+      "level": null,
+      "metadata": {},
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > p:nth-child(2)",
+          "element_tag": "p",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_003",
+      "type": "heading",
+      "text": "Architecture",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Architecture"
+      ],
+      "order": 3,
+      "importance": 0.9,
+      "level": 2,
+      "metadata": {
+        "level": 2
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > h2:nth-child(1)",
+          "element_tag": "h2",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            977,
+            989
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_004",
+      "type": "paragraph",
+      "text": "A neural network consists of layers of interconnected nodes or neurons. Each connection can transmit a signal from one neuron to another.",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Architecture"
+      ],
+      "order": 4,
+      "importance": 0.7,
+      "level": null,
+      "metadata": {},
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > p:nth-child(3)",
+          "element_tag": "p",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_005",
+      "type": "figure_caption",
+      "text": "Figure 1: A simple feedforward neural network with one hidden layer.",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Architecture"
+      ],
+      "order": 5,
+      "importance": 0.6,
+      "level": null,
+      "metadata": {},
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > figure",
+          "element_tag": "figure",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            1299,
+            1367
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_006",
+      "type": "heading",
+      "text": "Types of Neural Networks",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Types of Neural Networks"
+      ],
+      "order": 6,
+      "importance": 0.9,
+      "level": 2,
+      "metadata": {
+        "level": 2
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > h2:nth-child(2)",
+          "element_tag": "h2",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            1420,
+            1444
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_007",
+      "type": "list",
+      "text": "Feedforward Neural Networks (FNN)\nConvolutional Neural Networks (CNN)\nRecurrent Neural Networks (RNN)\nTransformers\nGenerative Adversarial Networks (GAN)",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Types of Neural Networks"
+      ],
+      "order": 7,
+      "importance": 0.6,
+      "level": null,
+      "metadata": {},
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > ul",
+          "element_tag": "ul",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_008",
+      "type": "heading",
+      "text": "Performance Comparison",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Types of Neural Networks",
+        "Performance Comparison"
+      ],
+      "order": 8,
+      "importance": 0.9,
+      "level": 3,
+      "metadata": {
+        "level": 3
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > h3",
+          "element_tag": "h3",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            1780,
+            1802
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_009",
+      "type": "table",
+      "text": "Network Type Best For Parameters Training Time FNN Tabular data ~1M Minutes CNN Image recognition ~25M Hours Transformer NLP, Multimodal ~175B Weeks",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Types of Neural Networks",
+        "Performance Comparison"
+      ],
+      "order": 9,
+      "importance": 0.8,
+      "level": null,
+      "metadata": {
+        "row_count": 4,
+        "col_count": 4,
+        "headers": [
+          "Network Type",
+          "Best For",
+          "Parameters",
+          "Training Time"
+        ],
+        "rows": [
+          [
+            "FNN",
+            "Tabular data",
+            "~1M",
+            "Minutes"
+          ],
+          [
+            "CNN",
+            "Image recognition",
+            "~25M",
+            "Hours"
+          ],
+          [
+            "Transformer",
+            "NLP, Multimodal",
+            "~175B",
+            "Weeks"
+          ]
+        ]
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > table",
+          "element_tag": "table",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_010",
+      "type": "heading",
+      "text": "Code Example",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Code Example"
+      ],
+      "order": 10,
+      "importance": 0.9,
+      "level": 2,
+      "metadata": {
+        "level": 2
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > h2:nth-child(3)",
+          "element_tag": "h2",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            2651,
+            2663
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_011",
+      "type": "paragraph",
+      "text": "Here's a simple neural network using PyTorch:",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Code Example"
+      ],
+      "order": 11,
+      "importance": 0.7,
+      "level": null,
+      "metadata": {},
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > p:nth-child(4)",
+          "element_tag": "p",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            2684,
+            2729
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_012",
+      "type": "code",
+      "text": "import torch\nimport torch.nn as nn\n\nclass SimpleNet(nn.Module):\n    def __init__(self, input_size, hidden_size, output_size):\n        super().__init__()\n        self.fc1 = nn.Linear(input_size, hidden_size)\n        self.relu = nn.ReLU()\n        self.fc2 = nn.Linear(hidden_size, output_size)\n\n    def forward(self, x):\n        x = self.fc1(x)\n        x = self.relu(x)\n        x = self.fc2(x)\n        return x\n\nmodel = SimpleNet(784, 128, 10)\nprint(f\"Parameters: {sum(p.numel() for p in model.parameters()):,}\")",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Code Example"
+      ],
+      "order": 12,
+      "importance": 0.7,
+      "level": null,
+      "metadata": {
+        "language": "python"
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > pre",
+          "element_tag": "pre",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            2781,
+            3291
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_013",
+      "type": "quote",
+      "text": "\"Deep learning allows computational models composed of multiple processing layers to learn representations of data with multiple levels of abstraction.\" — Yann LeCun, Yoshua Bengio, Geoffrey Hinton",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "Code Example"
+      ],
+      "order": 13,
+      "importance": 0.5,
+      "level": null,
+      "metadata": {},
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > blockquote",
+          "element_tag": "blockquote",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            3348,
+            3428
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_014",
+      "type": "heading",
+      "text": "References",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "References"
+      ],
+      "order": 14,
+      "importance": 0.9,
+      "level": 2,
+      "metadata": {
+        "level": 2
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > h2:nth-child(4)",
+          "element_tag": "h2",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": {
+          "page": null,
+          "bbox": null,
+          "char_range": [
+            3621,
+            3631
+          ]
+        },
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    },
+    {
+      "id": "b_015",
+      "type": "list",
+      "text": "LeCun, Y., Bengio, Y., & Hinton, G. (2015). Deep learning. Nature, 521(7553).\nGoodfellow, I., Bengio, Y., & Courville, A. (2016). Deep Learning. MIT Press.",
+      "html": null,
+      "section_path": [
+        "Introduction to Neural Networks",
+        "References"
+      ],
+      "order": 15,
+      "importance": 0.6,
+      "level": null,
+      "metadata": {},
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > ol",
+          "element_tag": "ol",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "children": []
+    }
+  ],
+  "canonical_markdown": "# Introduction to Neural Networks\n\nPublished on March 15, 2026 by Dr. Jane Smith\n\n\nNeural networks are computing systems inspired by biological neural networks that constitute animal brains. They are a subset of machine learning and are at the heart of deep learning algorithms.\n\n\n## Architecture\n\nA neural network consists of layers of interconnected nodes or neurons. Each connection can transmit a signal from one neuron to another.\n\n\n*Figure 1: A simple feedforward neural network with one hidden layer.*\n\n## Types of Neural Networks\n\n- Feedforward Neural Networks (FNN)\n- Convolutional Neural Networks (CNN)\n- Recurrent Neural Networks (RNN)\n- Transformers\n- Generative Adversarial Networks (GAN)\n\n### Performance Comparison\n\n| Network Type | Best For | Parameters | Training Time |\n| --- | --- | --- | --- |\n| FNN | Tabular data | ~1M | Minutes |\n| CNN | Image recognition | ~25M | Hours |\n| Transformer | NLP, Multimodal | ~175B | Weeks |\n\n## Code Example\n\nHere's a simple neural network using PyTorch:\n\n\n```python\nimport torch\nimport torch.nn as nn\n\nclass SimpleNet(nn.Module):\n    def __init__(self, input_size, hidden_size, output_size):\n        super().__init__()\n        self.fc1 = nn.Linear(input_size, hidden_size)\n        self.relu = nn.ReLU()\n        self.fc2 = nn.Linear(hidden_size, output_size)\n\n    def forward(self, x):\n        x = self.fc1(x)\n        x = self.relu(x)\n        x = self.fc2(x)\n        return x\n\nmodel = SimpleNet(784, 128, 10)\nprint(f\"Parameters: {sum(p.numel() for p in model.parameters()):,}\")\n```\n\n> \"Deep learning allows computational models composed of multiple processing layers to learn representations of data with multiple levels of abstraction.\" — Yann LeCun, Yoshua Bengio, Geoffrey Hinton\n\n## References\n\n- LeCun, Y., Bengio, Y., & Hinton, G. (2015). Deep learning. Nature, 521(7553).\n- Goodfellow, I., Bengio, Y., & Courville, A. (2016). Deep Learning. MIT Press.",
+  "actions": [
+    {
+      "id": "a_004_click",
+      "type": "click",
+      "label": "Accept",
+      "selector": "html > body > div:nth-of-type(1) > p > button",
+      "role": null,
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.7,
+      "state_effect": null,
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > div:nth-of-type(1) > p > button",
+          "element_tag": "button",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "interaction"
+    },
+    {
+      "id": "a_006_click",
+      "type": "click",
+      "label": "Search",
+      "selector": "html > body > main > article > div > form > button",
+      "role": "search",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.7,
+      "state_effect": null,
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > div > form > button",
+          "element_tag": "button",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "interaction"
+    },
+    {
+      "id": "a_007_download",
+      "type": "download",
+      "label": "Download PDF",
+      "selector": "html > body > main > article > div > a:nth-of-type(1)",
+      "role": null,
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.7,
+      "state_effect": {
+        "may_navigate": false,
+        "may_open_modal": false,
+        "may_download": true,
+        "target_url": null
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > div > a:nth-of-type(1)",
+          "element_tag": "a",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "navigation"
+    },
+    {
+      "id": "a_012_click",
+      "type": "click",
+      "label": "Subscribe",
+      "selector": "html > body > div:nth-of-type(2) > button",
+      "role": null,
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.7,
+      "state_effect": null,
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > div:nth-of-type(2) > button",
+          "element_tag": "button",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "interaction"
+    },
+    {
+      "id": "a_005_input",
+      "type": "input",
+      "label": "Search articles...",
+      "selector": "html > body > main > article > div > form > input",
+      "role": "search_input",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.6,
+      "state_effect": null,
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > div > form > input",
+          "element_tag": "input",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "form"
+    },
+    {
+      "id": "a_008_navigate",
+      "type": "navigate",
+      "label": "Next Article →",
+      "selector": "html > body > main > article > div > a:nth-of-type(2)",
+      "role": "next_page",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.6,
+      "state_effect": {
+        "may_navigate": true,
+        "may_open_modal": false,
+        "may_download": false,
+        "target_url": "/next-article"
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > main > article > div > a:nth-of-type(2)",
+          "element_tag": "a",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "navigation"
+    },
+    {
+      "id": "a_011_input",
+      "type": "input",
+      "label": "Enter your email",
+      "selector": "html > body > div:nth-of-type(2) > input",
+      "role": null,
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.6,
+      "state_effect": null,
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > div:nth-of-type(2) > input",
+          "element_tag": "input",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "form"
+    },
+    {
+      "id": "a_000_navigate",
+      "type": "navigate",
+      "label": "Home",
+      "selector": "html > body > header > nav > a:nth-of-type(1)",
+      "role": "navigation",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.3,
+      "state_effect": {
+        "may_navigate": true,
+        "may_open_modal": false,
+        "may_download": false,
+        "target_url": "/"
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > header > nav > a:nth-of-type(1)",
+          "element_tag": "a",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "navigation"
+    },
+    {
+      "id": "a_001_navigate",
+      "type": "navigate",
+      "label": "Blog",
+      "selector": "html > body > header > nav > a:nth-of-type(2)",
+      "role": "navigation",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.3,
+      "state_effect": {
+        "may_navigate": true,
+        "may_open_modal": false,
+        "may_download": false,
+        "target_url": "/blog"
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > header > nav > a:nth-of-type(2)",
+          "element_tag": "a",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "navigation"
+    },
+    {
+      "id": "a_002_navigate",
+      "type": "navigate",
+      "label": "About",
+      "selector": "html > body > header > nav > a:nth-of-type(3)",
+      "role": "navigation",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.3,
+      "state_effect": {
+        "may_navigate": true,
+        "may_open_modal": false,
+        "may_download": false,
+        "target_url": "/about"
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > header > nav > a:nth-of-type(3)",
+          "element_tag": "a",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "navigation"
+    },
+    {
+      "id": "a_003_navigate",
+      "type": "navigate",
+      "label": "Contact",
+      "selector": "html > body > header > nav > a:nth-of-type(4)",
+      "role": "navigation",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.3,
+      "state_effect": {
+        "may_navigate": true,
+        "may_open_modal": false,
+        "may_download": false,
+        "target_url": "/contact"
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > header > nav > a:nth-of-type(4)",
+          "element_tag": "a",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "navigation"
+    },
+    {
+      "id": "a_009_navigate",
+      "type": "navigate",
+      "label": "Understanding CNNs",
+      "selector": "html > body > aside > ul > li:nth-of-type(1) > a",
+      "role": "navigation",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.3,
+      "state_effect": {
+        "may_navigate": true,
+        "may_open_modal": false,
+        "may_download": false,
+        "target_url": "/cnn"
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > aside > ul > li:nth-of-type(1) > a",
+          "element_tag": "a",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "navigation"
+    },
+    {
+      "id": "a_010_navigate",
+      "type": "navigate",
+      "label": "Transformers Explained",
+      "selector": "html > body > aside > ul > li:nth-of-type(2) > a",
+      "role": "navigation",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.3,
+      "state_effect": {
+        "may_navigate": true,
+        "may_open_modal": false,
+        "may_download": false,
+        "target_url": "/transformers"
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > aside > ul > li:nth-of-type(2) > a",
+          "element_tag": "a",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "navigation"
+    },
+    {
+      "id": "a_013_navigate",
+      "type": "navigate",
+      "label": "Privacy Policy",
+      "selector": "html > body > footer > nav > a:nth-of-type(1)",
+      "role": "navigation",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.3,
+      "state_effect": {
+        "may_navigate": true,
+        "may_open_modal": false,
+        "may_download": false,
+        "target_url": "/privacy"
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > footer > nav > a:nth-of-type(1)",
+          "element_tag": "a",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "navigation"
+    },
+    {
+      "id": "a_014_navigate",
+      "type": "navigate",
+      "label": "Terms of Service",
+      "selector": "html > body > footer > nav > a:nth-of-type(2)",
+      "role": "navigation",
+      "value_schema": null,
+      "required_fields": [],
+      "confidence": 0.8,
+      "priority": 0.3,
+      "state_effect": {
+        "may_navigate": true,
+        "may_open_modal": false,
+        "may_download": false,
+        "target_url": "/terms"
+      },
+      "provenance": {
+        "dom": {
+          "dom_path": "html > body > footer > nav > a:nth-of-type(2)",
+          "element_tag": "a",
+          "element_id": null,
+          "element_classes": []
+        },
+        "page": null,
+        "screenshot": null,
+        "source_url": null,
+        "raw_html": null
+      },
+      "group": "navigation"
+    }
+  ],
+  "site_profile": null,
+  "quality": {
+    "parse_confidence": 1.0,
+    "ocr_used": false,
+    "dynamic_rendered": false,
+    "block_count": 16,
+    "action_count": 15,
+    "warnings": []
+  },
+  "debug": {
+    "timings": {
+      "normalize_ms": 15.171294999999974,
+      "segment_ms": 2.3439180000000004,
+      "extract_actions_ms": 11.051196999999958,
+      "align_ms": 1.201615999999961,
+      "markdown_ms": 0.4445279999999996,
+      "total_ms": 30.220232999999986
+    }
+  },
+  "block_count": 16,
+  "action_count": 15
+}
