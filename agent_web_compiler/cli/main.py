@@ -32,6 +32,15 @@ def cli() -> None:
 
 
 @cli.command()
+def interactive() -> None:
+    """Start interactive search REPL."""
+    from agent_web_compiler.cli.repl import InteractiveREPL
+
+    repl = InteractiveREPL()
+    repl.run()
+
+
+@cli.command()
 @click.argument("sources", nargs=-1, required=True)
 @click.option("-o", "--output", type=click.Path(), default=None, help="Output directory or file")
 @click.option(

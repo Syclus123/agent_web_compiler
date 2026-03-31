@@ -229,6 +229,7 @@ def ingest_document(
                 evidence_score=_compute_evidence_score(block),
                 page=block.metadata.get("page"),
                 bbox=block.metadata.get("bbox"),
+                embedding=block.metadata.get("_embedding"),
                 timestamp=now,
             )
         )
@@ -237,6 +238,8 @@ def ingest_document(
     action_records: list[ActionRecord] = []
     for action in doc.actions:
         type_val = action.type.value if hasattr(action.type, "value") else str(action.type)
+        # Pick up embedding if set by an embedder during ingest
+        action_embedding = getattr(action, "_embedding", None)
         action_records.append(
             ActionRecord(
                 action_id=action.id,
@@ -248,6 +251,7 @@ def ingest_document(
                 selector=action.selector,
                 value_schema=action.value_schema,
                 required_fields=list(action.required_fields),
+                embedding=action_embedding,
                 confidence=action.confidence,
                 timestamp=now,
             )

@@ -36,6 +36,7 @@ from typing import Any
 from agent_web_compiler.core.config import CompileConfig
 from agent_web_compiler.core.document import AgentDocument
 from agent_web_compiler.index import IndexEngine
+from agent_web_compiler.index.embeddings import Embedder
 from agent_web_compiler.search.action_runtime import ActionRuntime, ExecutionPlan
 from agent_web_compiler.search.grounded_answer import GroundedAnswer, GroundedAnswerer
 from agent_web_compiler.search.retriever import Retriever, SearchResponse, SearchResult
@@ -47,10 +48,19 @@ class AgentSearch:
     Provides a unified API over the compilation pipeline, index engine,
     retriever, grounded answerer, and action runtime. Manages a single
     in-memory index that can be persisted to disk.
+
+    If an ``embedder`` is provided, ingested blocks and actions will have
+    their embeddings computed automatically, and search queries will be
+    embedded for hybrid (BM25 + dense) retrieval.
     """
 
-    def __init__(self, config: CompileConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: CompileConfig | None = None,
+        embedder: Embedder | None = None,
+    ) -> None:
         self.config = config or CompileConfig()
+        self._embedder = embedder
         self._engine = IndexEngine()
         self._retriever = Retriever(self._engine)
         self._answerer = GroundedAnswerer(self._retriever)
@@ -59,7 +69,13 @@ class AgentSearch:
     # --- Ingestion ---
 
     def ingest(self, doc: AgentDocument) -> None:
-        """Ingest a pre-compiled AgentDocument into the index."""
+        """Ingest a pre-compiled AgentDocument into the index.
+
+        If an embedder is configured, block and action embeddings are
+        computed before insertion so that hybrid retrieval is available.
+        """
+        if self._embedder is not None:
+            self._embed_document(doc)
         self._engine.ingest(doc)
 
     def ingest_html(
@@ -74,10 +90,10 @@ class AgentSearch:
         Returns:
             The compiled AgentDocument.
         """
-        from agent_web_compiler.api.compile import compile_html
+        from agent_web_compiler.pipeline.compiler import HTMLCompiler
 
-        doc = compile_html(html, source_url=source_url, config=self.config)
-        self._engine.ingest(doc)
+        doc = HTMLCompiler().compile(html, source_url=source_url, config=self.config)
+        self.ingest(doc)
         return doc
 
     def ingest_url(self, url: str) -> AgentDocument:
@@ -93,10 +109,12 @@ class AgentSearch:
             FetchError: If the URL cannot be fetched.
             CompilerError: If compilation fails.
         """
-        from agent_web_compiler.api.compile import compile_url
+        from agent_web_compiler.sources.http_fetcher import HTTPFetcher
 
-        doc = compile_url(url, config=self.config)
-        self._engine.ingest(doc)
+        fetcher = HTTPFetcher()
+        result = fetcher.fetch_sync(url, self.config)
+        content = result.content if isinstance(result.content, str) else result.content.decode("utf-8")
+        doc = self.ingest_html(content, source_url=url)
         return doc
 
     def ingest_file(self, path: str) -> AgentDocument:
@@ -111,10 +129,24 @@ class AgentSearch:
         Raises:
             CompilerError: If compilation fails.
         """
-        from agent_web_compiler.api.compile import compile_file
+        from agent_web_compiler.sources.file_reader import FileReader
 
-        doc = compile_file(path, config=self.config)
-        self._engine.ingest(doc)
+        reader = FileReader()
+        result = reader.read(path)
+
+        if result.content_type == "application/pdf":
+            from agent_web_compiler.pipeline.pdf_compiler import PDFCompiler
+            doc = PDFCompiler().compile(result.content, source_file=path, config=self.config)
+        elif result.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            from agent_web_compiler.pipeline.docx_compiler import DOCXCompiler
+            doc = DOCXCompiler().compile(result.content, source_file=path, config=self.config)
+        else:
+            content = result.content if isinstance(result.content, str) else result.content.decode("utf-8")
+            doc = self.ingest_html(content)
+            doc.source_file = str(path)
+            return doc  # already ingested by ingest_html
+
+        self.ingest(doc)
         return doc
 
     # --- Search ---
@@ -130,6 +162,8 @@ class AgentSearch:
         Returns:
             A SearchResponse with ranked results and metadata.
         """
+        if self._embedder is not None and "query_embedding" not in kwargs:
+            kwargs["query_embedding"] = self._embedder.embed(query)
         return self._retriever.search(query, top_k=top_k, **kwargs)
 
     def search_blocks(
@@ -145,21 +179,26 @@ class AgentSearch:
         Returns:
             A list of SearchResult objects for matching blocks.
         """
+        if self._embedder is not None and "query_embedding" not in kwargs:
+            kwargs["query_embedding"] = self._embedder.embed(query)
         return self._retriever.search_blocks(query, top_k=top_k, **kwargs)
 
     def search_actions(
-        self, query: str, top_k: int = 10
+        self, query: str, top_k: int = 10, **kwargs: Any
     ) -> list[SearchResult]:
         """Search for executable actions only.
 
         Args:
             query: Natural-language search query.
             top_k: Maximum number of results.
+            **kwargs: Passed through to Retriever.search_actions().
 
         Returns:
             A list of SearchResult objects for matching actions.
         """
-        return self._retriever.search_actions(query, top_k=top_k)
+        if self._embedder is not None and "query_embedding" not in kwargs:
+            kwargs["query_embedding"] = self._embedder.embed(query)
+        return self._retriever.search_actions(query, top_k=top_k, **kwargs)
 
     # --- Answering ---
 
@@ -218,3 +257,33 @@ class AgentSearch:
             Dict with counts: documents, blocks, actions, sites.
         """
         return self._engine.stats
+
+    # --- Private helpers ---
+
+    def _embed_document(self, doc: AgentDocument) -> None:
+        """Compute and attach embeddings for blocks and actions in a document.
+
+        Called automatically during ingest when an embedder is configured.
+        Stores embeddings so the ingestion layer can populate index records.
+
+        Block embeddings are stored in ``block.metadata["_embedding"]``.
+        Action embeddings are stored as a private ``_embedding`` attribute
+        via ``object.__setattr__`` (Actions are Pydantic models without a
+        metadata dict).
+        """
+        if self._embedder is None:
+            return
+
+        # Embed blocks
+        block_texts = [block.text or "" for block in doc.blocks]
+        if block_texts:
+            embeddings = self._embedder.embed_batch(block_texts)
+            for block, emb in zip(doc.blocks, embeddings):
+                block.metadata["_embedding"] = emb
+
+        # Embed actions
+        action_texts = [action.label or "" for action in doc.actions]
+        if action_texts:
+            embeddings = self._embedder.embed_batch(action_texts)
+            for action, emb in zip(doc.actions, embeddings):
+                object.__setattr__(action, "_embedding", emb)
