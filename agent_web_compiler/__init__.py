@@ -15,6 +15,12 @@ Usage:
     from agent_web_compiler import PipelineBuilder
     pipeline = PipelineBuilder().skip_actions().build()
     doc = pipeline.compile(html)
+
+    # Publish agent-friendly site files
+    from agent_web_compiler import SitePublisher
+    publisher = SitePublisher(site_name="My Docs", site_url="https://docs.example.com")
+    publisher.add_page(doc)
+    publisher.generate_all("output/agent-publish/")
 """
 
 from __future__ import annotations
@@ -28,6 +34,7 @@ from agent_web_compiler.api.compile import (
     compile_url,
 )
 from agent_web_compiler.pipeline.builder import PipelineBuilder
+from agent_web_compiler.publisher.site_publisher import SitePublisher
 from agent_web_compiler.search.agent_search import AgentSearch
 
 __all__ = [
@@ -40,6 +47,8 @@ __all__ = [
     "PipelineBuilder",
     # Search (primary entry point)
     "AgentSearch",
+    # Publisher (site-level file generation)
+    "SitePublisher",
     # Version
     "__version__",
 ]

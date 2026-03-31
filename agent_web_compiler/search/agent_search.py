@@ -31,13 +31,17 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from agent_web_compiler.core.config import CompileConfig
 from agent_web_compiler.core.document import AgentDocument
 from agent_web_compiler.index import IndexEngine
 from agent_web_compiler.index.embeddings import Embedder
 from agent_web_compiler.search.action_runtime import ActionRuntime, ExecutionPlan
+
+if TYPE_CHECKING:
+    from agent_web_compiler.sources.crawler import CrawlResult
+
 from agent_web_compiler.search.grounded_answer import GroundedAnswer, GroundedAnswerer
 from agent_web_compiler.search.retriever import Retriever, SearchResponse, SearchResult
 
@@ -117,6 +121,37 @@ class AgentSearch:
         doc = self.ingest_html(content, source_url=url)
         return doc
 
+    def crawl_site(
+        self,
+        seed_url: str,
+        max_pages: int = 50,
+        delay_seconds: float = 0.5,
+        max_depth: int = 3,
+    ) -> CrawlResult:
+        """Crawl a site and ingest all discovered pages into the index.
+
+        Starts from seed_url, discovers links via BFS, compiles each page,
+        and adds it to the search index. Stays within the same domain.
+
+        Args:
+            seed_url: Starting URL. The crawler stays on this domain.
+            max_pages: Maximum number of pages to crawl.
+            delay_seconds: Politeness delay between requests.
+            max_depth: Maximum link depth from the seed URL.
+
+        Returns:
+            A CrawlResult with crawl statistics and any errors.
+        """
+        from agent_web_compiler.sources.crawler import CrawlConfig, SiteCrawler
+
+        crawl_config = CrawlConfig(
+            max_pages=max_pages,
+            delay_seconds=delay_seconds,
+            max_depth=max_depth,
+        )
+        crawler = SiteCrawler(config=crawl_config)
+        return crawler.crawl(seed_url, search=self)
+
     def ingest_file(self, path: str) -> AgentDocument:
         """Compile a file and ingest into the index.
 
@@ -136,9 +171,11 @@ class AgentSearch:
 
         if result.content_type == "application/pdf":
             from agent_web_compiler.pipeline.pdf_compiler import PDFCompiler
+
             doc = PDFCompiler().compile(result.content, source_file=path, config=self.config)
         elif result.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             from agent_web_compiler.pipeline.docx_compiler import DOCXCompiler
+
             doc = DOCXCompiler().compile(result.content, source_file=path, config=self.config)
         else:
             content = result.content if isinstance(result.content, str) else result.content.decode("utf-8")

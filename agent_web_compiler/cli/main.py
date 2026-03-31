@@ -656,6 +656,70 @@ def index_add(sources: tuple[str, ...], index_path: str, mode: str) -> None:
     console.print()
 
 
+@index.command(name="crawl")
+@click.argument("seed_url")
+@click.option("--max-pages", default=50, type=int, help="Maximum pages to crawl")
+@click.option("--delay", default=0.5, type=float, help="Politeness delay between requests (seconds)")
+@click.option("--max-depth", default=3, type=int, help="Maximum link depth from seed URL")
+@click.option("--index-path", default="awc_index.json", help="Index file path")
+@click.option(
+    "--mode",
+    type=click.Choice(["fast", "balanced", "high_recall"]),
+    default="balanced",
+    help="Compilation mode",
+)
+def index_crawl(
+    seed_url: str,
+    max_pages: int,
+    delay: float,
+    max_depth: int,
+    index_path: str,
+    mode: str,
+) -> None:
+    """Crawl a site and add all discovered pages to the index."""
+    from agent_web_compiler.core.config import CompileConfig, CompileMode
+    from agent_web_compiler.search import AgentSearch
+
+    config = CompileConfig(mode=CompileMode(mode))
+    search = AgentSearch(config=config)
+
+    # Load existing index if present
+    index_file = Path(index_path)
+    if index_file.exists():
+        search.load(index_path)
+        console.print(f"[dim]Loaded existing index from {index_path}[/dim]")
+
+    console.print(f"\n[bold blue]🕷  Crawling:[/bold blue] {seed_url}")
+    console.print(f"  max_pages={max_pages}, delay={delay}s, max_depth={max_depth}\n")
+
+    result = search.crawl_site(
+        seed_url,
+        max_pages=max_pages,
+        delay_seconds=delay,
+        max_depth=max_depth,
+    )
+
+    console.print(f"\n[bold green]✓ Crawl complete in {result.elapsed_seconds:.1f}s[/bold green]")
+    console.print(f"  Pages crawled: {result.pages_crawled}")
+    console.print(f"  Pages failed:  {result.pages_failed}")
+    console.print(f"  Total blocks:  {result.total_blocks}")
+    console.print(f"  Total actions: {result.total_actions}")
+
+    if result.errors:
+        console.print(f"\n  [red]Errors ({len(result.errors)}):[/red]")
+        for url, err in list(result.errors.items())[:10]:
+            console.print(f"    [red]✗[/red] {url}: {err}")
+
+    search.save(index_path)
+    console.print(f"\n[green]Index saved to {index_path}[/green]")
+    stats = search.stats
+    console.print(
+        f"  {stats['documents']} documents, {stats['blocks']} blocks, "
+        f"{stats['actions']} actions"
+    )
+    console.print()
+
+
 @index.command(name="stats")
 @click.option("--index-path", default="awc_index.json", help="Index file path")
 def index_stats(index_path: str) -> None:
@@ -797,6 +861,189 @@ def plan(query: str, index_path: str, fmt: str) -> None:
         console.print()
         console.print(result.to_markdown())
         console.print()
+
+
+# ---------------------------------------------------------------------------
+# Publish commands
+# ---------------------------------------------------------------------------
+
+
+@cli.group()
+def publish() -> None:
+    """Agent Publisher Toolkit — generate agent-friendly site files."""
+
+
+@publish.command(name="site")
+@click.argument("seed_url")
+@click.option("--output", "-o", required=True, help="Output directory for generated files")
+@click.option("--max-pages", default=50, type=int, help="Maximum pages to crawl")
+@click.option("--site-name", default="", help="Site display name")
+@click.option("--site-description", default="", help="Site description")
+def publish_site(
+    seed_url: str,
+    output: str,
+    max_pages: int,
+    site_name: str,
+    site_description: str,
+) -> None:
+    """Crawl a site and generate all agent-friendly files.
+
+    Discovers pages starting from SEED_URL, compiles each page, then
+    generates llms.txt, agent.json, content.json, actions.json, and
+    agent-sitemap.xml in the output directory.
+    """
+    from agent_web_compiler.publisher import SitePublisher
+
+    publisher = SitePublisher(
+        site_name=site_name,
+        site_url=seed_url,
+        site_description=site_description,
+    )
+
+    console.print(f"\n[bold blue]🕷  Crawling:[/bold blue] {seed_url}")
+    console.print(f"  max_pages={max_pages}\n")
+
+    try:
+        count = publisher.crawl_site(seed_url, max_pages=max_pages)
+    except Exception as e:
+        console.print(f"[red]Error during crawl:[/red] {e}")
+        sys.exit(1)
+
+    console.print(f"[green]✓ Crawled {count} pages[/green]\n")
+
+    try:
+        files = publisher.generate_all(output)
+    except Exception as e:
+        console.print(f"[red]Error during generation:[/red] {e}")
+        sys.exit(1)
+
+    console.print(f"[bold green]✓ Generated {len(files)} files in {output}/[/bold green]")
+    for fname in sorted(files):
+        console.print(f"  [green]✓[/green] {fname}")
+    console.print()
+
+    # Show summary
+    summary = publisher.summary
+    console.print(
+        f"  Pages: {summary['page_count']} | "
+        f"Blocks: {summary['total_blocks']} | "
+        f"Actions: {summary['total_actions']}"
+    )
+    console.print()
+
+
+@publish.command(name="files")
+@click.argument("sources", nargs=-1, required=True)
+@click.option("--output", "-o", required=True, help="Output directory for generated files")
+@click.option("--site-name", default="", help="Site display name")
+@click.option("--site-url", default="", help="Site base URL")
+def publish_files(
+    sources: tuple[str, ...],
+    output: str,
+    site_name: str,
+    site_url: str,
+) -> None:
+    """Generate agent-friendly files from local HTML/PDF files.
+
+    Compiles each source file, then generates all agent-friendly output
+    files in the output directory.
+    """
+    from agent_web_compiler.api.compile import compile_file
+    from agent_web_compiler.publisher import SitePublisher
+
+    publisher = SitePublisher(
+        site_name=site_name,
+        site_url=site_url,
+    )
+
+    console.print(f"\n[bold blue]⚡ Compiling {len(sources)} source(s)[/bold blue]\n")
+
+    for source in sources:
+        source_path = Path(source)
+        if not source_path.exists():
+            console.print(f"  [red]✗[/red] Not found: {source}")
+            continue
+        try:
+            doc = compile_file(source)
+            publisher.add_page(doc)
+            console.print(
+                f"  [green]✓[/green] {source_path.name} "
+                f"({doc.block_count} blocks, {doc.action_count} actions)"
+            )
+        except Exception as e:
+            console.print(f"  [red]✗[/red] {source_path.name}: {e}")
+
+    if publisher.page_count == 0:
+        console.print("\n[yellow]No pages compiled. Nothing to generate.[/yellow]")
+        sys.exit(1)
+
+    try:
+        files = publisher.generate_all(output)
+    except Exception as e:
+        console.print(f"\n[red]Error during generation:[/red] {e}")
+        sys.exit(1)
+
+    console.print(f"\n[bold green]✓ Generated {len(files)} files in {output}/[/bold green]")
+    for fname in sorted(files):
+        console.print(f"  [green]✓[/green] {fname}")
+    console.print()
+
+
+@publish.command(name="preview")
+@click.argument("source")
+def publish_preview(source: str) -> None:
+    """Preview what would be published for a single page.
+
+    Compiles SOURCE (URL or file path), then shows a summary of what
+    each generated file would contain.
+    """
+    from agent_web_compiler.publisher import SitePublisher
+
+    console.print(f"\n[bold blue]⚡ Preview:[/bold blue] {source}\n")
+
+    try:
+        source_path = Path(source)
+        if source_path.exists():
+            from agent_web_compiler.api.compile import compile_file
+
+            doc = compile_file(source)
+        elif source.startswith(("http://", "https://")):
+            from agent_web_compiler.api.compile import compile_url as _compile_url
+
+            doc = _compile_url(source)
+        else:
+            console.print(f"[red]Error:[/red] '{source}' is not a valid URL or file path")
+            sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    publisher = SitePublisher()
+    publisher.add_page(doc)
+    summary = publisher.summary
+
+    table = Table(title="Publish Preview")
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+    table.add_row("Site Name", summary["site_name"] or "(auto)")
+    table.add_row("Site URL", summary["site_url"] or "(auto)")
+    table.add_row("Pages", str(summary["page_count"]))
+    table.add_row("Total Blocks", str(summary["total_blocks"]))
+    table.add_row("Total Actions", str(summary["total_actions"]))
+    table.add_row("Files", ", ".join(summary["files"]))
+    console.print(table)
+
+    # Show document details
+    console.print(f"\n  Title: [bold]{doc.title or 'Untitled'}[/bold]")
+    console.print(f"  Blocks: {doc.block_count}")
+    console.print(f"  Actions: {doc.action_count}")
+
+    if doc.actions:
+        console.print("\n  [bold]Top actions:[/bold]")
+        for action in doc.actions[:5]:
+            console.print(f"    - [{action.type.value}] {action.label}")
+
+    console.print()
 
 
 if __name__ == "__main__":

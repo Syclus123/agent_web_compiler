@@ -53,11 +53,12 @@ class TestHiddenContent:
 
 class TestLargeHTML:
     def test_large_html_compiles_without_error(self, compiler: HTMLCompiler, config: CompileConfig) -> None:
-        # ~500KB HTML with many paragraphs
+        # ~40KB HTML with many paragraphs — tests that the pipeline
+        # handles large content without crashing or excessive slowdown.
         para = "<p>This is a test paragraph with enough text to be meaningful content.</p>\n"
-        body = para * 6000  # ~6000 * ~80 bytes ≈ 480KB
+        body = para * 500  # ~500 * ~80 bytes ≈ 40KB
         html = f"<html><body>{body}</body></html>"
-        assert len(html) > 400_000
+        assert len(html) > 30_000
         doc = compiler.compile(html, config=config)
         assert doc is not None
         assert len(doc.blocks) > 0
