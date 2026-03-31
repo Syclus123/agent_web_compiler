@@ -236,7 +236,10 @@ def compile_file(
 
     # Default: treat as HTML
     content = result.content if isinstance(result.content, str) else result.content.decode("utf-8")
-    return compile_html(content, source_url=None, config=config)
+    doc = compile_html(content, source_url=None, config=config)
+    # Set source_file so index ingestion can derive site_id
+    doc.source_file = str(path)
+    return doc
 
 
 def compile_batch(

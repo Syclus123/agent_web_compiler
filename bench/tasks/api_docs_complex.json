@@ -33,5 +33,10 @@
     ],
     "noise_phrases": ["privacy policy", "terms of service", "all rights reserved"],
     "main_action_label": "Search"
-  }
+  },
+  "search_qa": [
+    {"query": "What authentication method is used?", "relevant_keywords": ["Bearer", "vlt_sk_live_"], "expected_block_type": null},
+    {"query": "What encryption algorithm is used?", "relevant_keywords": ["aes-256-gcm"], "expected_block_type": null},
+    {"query": "What is the maximum secret size?", "relevant_keywords": ["64KB"], "expected_block_type": null}
+  ]
 }

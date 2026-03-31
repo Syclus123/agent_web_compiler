@@ -31,6 +31,11 @@
     "noise_phrases": ["privacy", "terms"],
     "main_action_label": "Search"
   },
+  "search_qa": [
+    {"query": "What is the configuration file name?", "relevant_keywords": ["vortex.toml"], "expected_block_type": null},
+    {"query": "What environment variable prefix is used?", "relevant_keywords": ["VORTEX_"], "expected_block_type": null},
+    {"query": "What error is raised for invalid config?", "relevant_keywords": ["ConfigurationError"], "expected_block_type": null}
+  ],
   "qa_items": [
     {
       "question": "What is the configuration file name?",

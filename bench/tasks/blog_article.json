@@ -30,6 +30,11 @@
     "noise_phrases": ["cookie", "subscribe", "advertisement", "analytics"],
     "main_action_label": "Search"
   },
+  "search_qa": [
+    {"query": "Who wrote this article?", "relevant_keywords": ["Sarah", "Chen"], "expected_block_type": null},
+    {"query": "What is the main scraper class?", "relevant_keywords": ["ReliableScraper"], "expected_block_type": null},
+    {"query": "What retry pattern is discussed?", "relevant_keywords": ["exponential", "backoff"], "expected_block_type": null}
+  ],
   "qa_items": [
     {
       "question": "Who is the author of the article?",

@@ -367,6 +367,53 @@ def bench_qa(fixtures_dir: str, output: str | None) -> None:
     console.print()
 
 
+@bench.command(name="search")
+@click.option(
+    "--fixtures-dir",
+    default="bench/tasks",
+    help="Path to fixtures directory",
+    type=click.Path(exists=True),
+)
+@click.option("-o", "--output", default=None, help="Output report path (markdown file)")
+def bench_search(fixtures_dir: str, output: str | None) -> None:
+    """Run search quality benchmarks on fixtures with search_qa items."""
+    from bench.eval.search_quality import SearchQualityBenchmark
+
+    benchmark = SearchQualityBenchmark()
+    console.print(f"\n[bold blue]Running search quality benchmarks[/bold blue] from {fixtures_dir}\n")
+
+    try:
+        results = benchmark.evaluate_all(fixtures_dir)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    if not results:
+        console.print("[yellow]No fixtures with search_qa items found.[/yellow]")
+        return
+
+    report = benchmark.generate_report(results)
+
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(report)
+        console.print(f"[green]Report written to {output_path}[/green]")
+    else:
+        console.print(report)
+
+    # Print summary
+    console.print(f"\n[bold green]Evaluated {len(results)} fixtures[/bold green]")
+    for r in results:
+        status = "[green]PASS[/green]" if r.avg_recall_at_5 >= 0.5 else "[yellow]WARN[/yellow]"
+        console.print(
+            f"  {status} {r.fixture_name}: "
+            f"R@5={r.avg_recall_at_5:.0%} R@10={r.avg_recall_at_10:.0%} "
+            f"MRR={r.avg_mrr:.2f} CitPrec={r.avg_citation_precision:.0%}"
+        )
+    console.print()
+
+
 @bench.command(name="inspect")
 @click.argument("path", type=click.Path(exists=True))
 def bench_inspect(path: str) -> None:
@@ -537,6 +584,210 @@ def _compile_batch_cli(
             click.echo("---")
 
     console.print()
+
+
+# ---------------------------------------------------------------------------
+# Search / Index commands
+# ---------------------------------------------------------------------------
+
+
+@cli.group()
+def index() -> None:
+    """Index management commands."""
+
+
+@index.command(name="add")
+@click.argument("sources", nargs=-1, required=True)
+@click.option("--index-path", default="awc_index.json", help="Index file path")
+@click.option(
+    "--mode",
+    type=click.Choice(["fast", "balanced", "high_recall"]),
+    default="balanced",
+    help="Compilation mode",
+)
+def index_add(sources: tuple[str, ...], index_path: str, mode: str) -> None:
+    """Add URLs or files to the search index."""
+    from agent_web_compiler.core.config import CompileConfig, CompileMode
+    from agent_web_compiler.search import AgentSearch
+
+    config = CompileConfig(mode=CompileMode(mode))
+    search = AgentSearch(config=config)
+
+    # Load existing index if present
+    index_file = Path(index_path)
+    if index_file.exists():
+        search.load(index_path)
+        console.print(f"[dim]Loaded existing index from {index_path}[/dim]")
+
+    for source in sources:
+        console.print(f"[blue]Indexing:[/blue] {source}")
+        try:
+            source_path = Path(source)
+            if source_path.exists():
+                doc = search.ingest_file(source)
+            elif source.startswith(("http://", "https://")):
+                doc = search.ingest_url(source)
+            else:
+                console.print(f"  [red]Error:[/red] '{source}' is not a valid URL or file path")
+                continue
+            console.print(
+                f"  [green]✓[/green] {doc.title or 'Untitled'} "
+                f"({doc.block_count} blocks, {doc.action_count} actions)"
+            )
+        except Exception as e:
+            console.print(f"  [red]Error:[/red] {e}")
+
+    search.save(index_path)
+    console.print(f"\n[green]Index saved to {index_path}[/green]")
+    stats = search.stats
+    console.print(
+        f"  {stats['documents']} documents, {stats['blocks']} blocks, "
+        f"{stats['actions']} actions"
+    )
+    console.print()
+
+
+@index.command(name="stats")
+@click.option("--index-path", default="awc_index.json", help="Index file path")
+def index_stats(index_path: str) -> None:
+    """Show index statistics."""
+    from agent_web_compiler.search import AgentSearch
+
+    search = AgentSearch()
+    try:
+        search.load(index_path)
+    except FileNotFoundError:
+        console.print(f"[red]Error:[/red] Index file not found: {index_path}")
+        sys.exit(1)
+
+    stats = search.stats
+    table = Table(title=f"Index: {index_path}")
+    table.add_column("Metric", style="bold")
+    table.add_column("Count", justify="right")
+    table.add_row("Documents", str(stats["documents"]))
+    table.add_row("Blocks", str(stats["blocks"]))
+    table.add_row("Actions", str(stats["actions"]))
+    table.add_row("Sites", str(stats["sites"]))
+    console.print(table)
+    console.print()
+
+
+@cli.command(name="search")
+@click.argument("query")
+@click.option("--index-path", default="awc_index.json", help="Index file path")
+@click.option("--top-k", default=5, type=int, help="Number of results")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json", "markdown"]),
+    default="markdown",
+    help="Output format",
+)
+def search_cmd(query: str, index_path: str, top_k: int, fmt: str) -> None:
+    """Search the index for relevant content."""
+    from agent_web_compiler.search import AgentSearch
+
+    search = AgentSearch()
+    try:
+        search.load(index_path)
+    except FileNotFoundError:
+        console.print(f"[red]Error:[/red] Index file not found: {index_path}")
+        sys.exit(1)
+
+    response = search.search(query, top_k=top_k)
+
+    if fmt == "json":
+        data = {
+            "query": response.query,
+            "intent": response.intent,
+            "total_candidates": response.total_candidates,
+            "retrieval_time_ms": response.retrieval_time_ms,
+            "results": [
+                {
+                    "kind": r.kind,
+                    "score": round(r.score, 4),
+                    "doc_id": r.doc_id,
+                    "block_id": r.block_id,
+                    "action_id": r.action_id,
+                    "text": r.text[:200],
+                    "section_path": r.section_path,
+                }
+                for r in response.results
+            ],
+        }
+        click.echo(json.dumps(data, indent=2))
+    elif fmt == "text":
+        click.echo(f"Query: {response.query}")
+        click.echo(f"Intent: {response.intent}")
+        click.echo(f"Results: {len(response.results)} (of {response.total_candidates} candidates)")
+        click.echo(f"Time: {response.retrieval_time_ms:.1f}ms\n")
+        for i, r in enumerate(response.results, 1):
+            click.echo(f"{i}. [{r.kind}] (score={r.score:.3f}) {r.text[:120]}")
+    else:
+        # markdown
+        console.print(f"\n[bold]Search: {query}[/bold]")
+        console.print(f"[dim]Intent: {response.intent} | {len(response.results)} results | {response.retrieval_time_ms:.1f}ms[/dim]\n")
+        for i, r in enumerate(response.results, 1):
+            kind_style = "cyan" if r.kind == "block" else "yellow"
+            console.print(f"  {i}. [{kind_style}][{r.kind}][/{kind_style}] (score={r.score:.3f})")
+            console.print(f"     {r.text[:150]}")
+            if r.section_path:
+                console.print(f"     [dim]{' > '.join(r.section_path)}[/dim]")
+        console.print()
+
+
+@cli.command()
+@click.argument("query")
+@click.option("--index-path", default="awc_index.json", help="Index file path")
+@click.option("--top-k", default=5, type=int, help="Number of evidence results")
+def answer(query: str, index_path: str, top_k: int) -> None:
+    """Get a grounded answer with citations."""
+    from agent_web_compiler.search import AgentSearch
+
+    search = AgentSearch()
+    try:
+        search.load(index_path)
+    except FileNotFoundError:
+        console.print(f"[red]Error:[/red] Index file not found: {index_path}")
+        sys.exit(1)
+
+    result = search.answer(query, top_k=top_k)
+    console.print()
+    console.print(result.to_markdown())
+    console.print()
+
+
+@cli.command()
+@click.argument("query")
+@click.option("--index-path", default="awc_index.json", help="Index file path")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json", "commands"]),
+    default="markdown",
+    help="Output format",
+)
+def plan(query: str, index_path: str, fmt: str) -> None:
+    """Generate an execution plan for a task."""
+    from agent_web_compiler.search import AgentSearch
+
+    search = AgentSearch()
+    try:
+        search.load(index_path)
+    except FileNotFoundError:
+        console.print(f"[red]Error:[/red] Index file not found: {index_path}")
+        sys.exit(1)
+
+    result = search.plan(query)
+
+    if fmt == "json":
+        click.echo(json.dumps(result.to_dict(), indent=2))
+    elif fmt == "commands":
+        click.echo(json.dumps(result.to_browser_commands(), indent=2))
+    else:
+        console.print()
+        console.print(result.to_markdown())
+        console.print()
 
 
 if __name__ == "__main__":

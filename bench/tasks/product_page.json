@@ -31,6 +31,11 @@
     "noise_phrases": ["tracking pixel", "analytics", "promo banner"],
     "main_action_label": "Add to Cart"
   },
+  "search_qa": [
+    {"query": "What is the price?", "relevant_keywords": ["549", "price"], "expected_block_type": "paragraph"},
+    {"query": "What motor system does it use?", "relevant_keywords": ["dual-motor"], "expected_block_type": null},
+    {"query": "What is the warranty?", "relevant_keywords": ["5-year", "warranty"], "expected_block_type": null}
+  ],
   "qa_items": [
     {
       "question": "What is the price of the product?",

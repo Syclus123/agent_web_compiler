@@ -213,6 +213,92 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["url"],
         },
     },
+    {
+        "name": "ingest_url",
+        "description": "Compile a URL and add it to the search index for later retrieval.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "The URL to fetch, compile, and index.",
+                },
+                "index_path": {
+                    "type": "string",
+                    "default": "awc_index.json",
+                    "description": "Path to the index file.",
+                },
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "search",
+        "description": "Search the index for relevant content blocks and actions.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Natural-language search query.",
+                },
+                "index_path": {
+                    "type": "string",
+                    "default": "awc_index.json",
+                    "description": "Path to the index file.",
+                },
+                "top_k": {
+                    "type": "integer",
+                    "default": 5,
+                    "description": "Maximum number of results to return.",
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "answer",
+        "description": "Get a grounded answer with citations from the search index.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Natural-language question.",
+                },
+                "index_path": {
+                    "type": "string",
+                    "default": "awc_index.json",
+                    "description": "Path to the index file.",
+                },
+                "top_k": {
+                    "type": "integer",
+                    "default": 5,
+                    "description": "Maximum number of evidence results.",
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "plan",
+        "description": "Generate an execution plan with browser automation steps for a task.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Natural-language task description.",
+                },
+                "index_path": {
+                    "type": "string",
+                    "default": "awc_index.json",
+                    "description": "Path to the index file.",
+                },
+            },
+            "required": ["query"],
+        },
+    },
 ]
 
 
@@ -311,6 +397,109 @@ def _handle_get_markdown(arguments: dict[str, Any]) -> str:
     return doc.canonical_markdown
 
 
+def _handle_ingest_url(arguments: dict[str, Any]) -> str:
+    """Handle the ingest_url tool call — add a URL to the search index."""
+    url = arguments.get("url")
+    if not url or not isinstance(url, str):
+        raise ValueError("Required parameter 'url' must be a non-empty string.")
+    index_path = arguments.get("index_path", "awc_index.json")
+
+    import contextlib
+
+    from agent_web_compiler.search import AgentSearch
+
+    search = AgentSearch()
+    with contextlib.suppress(FileNotFoundError):
+        search.load(index_path)
+
+    doc = search.ingest_url(url)
+    search.save(index_path)
+
+    return json.dumps(
+        {
+            "status": "indexed",
+            "doc_id": doc.doc_id,
+            "title": doc.title,
+            "blocks": doc.block_count,
+            "actions": doc.action_count,
+            "stats": search.stats,
+        },
+        indent=2,
+        default=str,
+    )
+
+
+def _handle_search(arguments: dict[str, Any]) -> str:
+    """Handle the search tool call — search for blocks and actions."""
+    query = arguments.get("query")
+    if not query or not isinstance(query, str):
+        raise ValueError("Required parameter 'query' must be a non-empty string.")
+    index_path = arguments.get("index_path", "awc_index.json")
+    top_k = arguments.get("top_k", 5)
+
+    from agent_web_compiler.search import AgentSearch
+
+    search = AgentSearch()
+    search.load(index_path)
+
+    response = search.search(query, top_k=top_k)
+    return json.dumps(
+        {
+            "query": response.query,
+            "intent": response.intent,
+            "total_candidates": response.total_candidates,
+            "retrieval_time_ms": response.retrieval_time_ms,
+            "results": [
+                {
+                    "kind": r.kind,
+                    "score": round(r.score, 4),
+                    "doc_id": r.doc_id,
+                    "block_id": r.block_id,
+                    "action_id": r.action_id,
+                    "text": r.text[:300],
+                    "section_path": r.section_path,
+                }
+                for r in response.results
+            ],
+        },
+        indent=2,
+        default=str,
+    )
+
+
+def _handle_answer(arguments: dict[str, Any]) -> str:
+    """Handle the answer tool call — get a grounded answer."""
+    query = arguments.get("query")
+    if not query or not isinstance(query, str):
+        raise ValueError("Required parameter 'query' must be a non-empty string.")
+    index_path = arguments.get("index_path", "awc_index.json")
+    top_k = arguments.get("top_k", 5)
+
+    from agent_web_compiler.search import AgentSearch
+
+    search = AgentSearch()
+    search.load(index_path)
+
+    result = search.answer(query, top_k=top_k)
+    return json.dumps(result.to_dict(), indent=2, default=str)
+
+
+def _handle_plan(arguments: dict[str, Any]) -> str:
+    """Handle the plan tool call — get an execution plan."""
+    query = arguments.get("query")
+    if not query or not isinstance(query, str):
+        raise ValueError("Required parameter 'query' must be a non-empty string.")
+    index_path = arguments.get("index_path", "awc_index.json")
+
+    from agent_web_compiler.search import AgentSearch
+
+    search = AgentSearch()
+    search.load(index_path)
+
+    result = search.plan(query)
+    return json.dumps(result.to_dict(), indent=2, default=str)
+
+
 _TOOL_HANDLERS: dict[str, Any] = {
     "compile_url": _handle_compile_url,
     "compile_html": _handle_compile_html,
@@ -318,6 +507,10 @@ _TOOL_HANDLERS: dict[str, Any] = {
     "get_blocks": _handle_get_blocks,
     "get_actions": _handle_get_actions,
     "get_markdown": _handle_get_markdown,
+    "ingest_url": _handle_ingest_url,
+    "search": _handle_search,
+    "answer": _handle_answer,
+    "plan": _handle_plan,
 }
 
 

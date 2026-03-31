@@ -28,6 +28,11 @@
     "noise_phrases": ["Ad", "CloudPlatform", "privacy", "terms"],
     "main_action_label": "Search"
   },
+  "search_qa": [
+    {"query": "What is the first web framework listed?", "relevant_keywords": ["Django"], "expected_block_type": null},
+    {"query": "How many total results were found?", "relevant_keywords": ["45,200,000"], "expected_block_type": null},
+    {"query": "What is Flask described as?", "relevant_keywords": ["Flask", "lightweight"], "expected_block_type": null}
+  ],
   "qa_items": [
     {
       "question": "What is the first search result about?",
