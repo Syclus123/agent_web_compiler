@@ -30,5 +30,25 @@
     ],
     "noise_phrases": ["privacy", "terms"],
     "main_action_label": "Search"
-  }
+  },
+  "qa_items": [
+    {
+      "question": "What is the configuration file name?",
+      "expected_answer": "vortex.toml",
+      "answer_keywords": ["vortex.toml"],
+      "answer_in_block_type": "paragraph"
+    },
+    {
+      "question": "What environment variable prefix is used?",
+      "expected_answer": "VORTEX_",
+      "answer_keywords": ["VORTEX_"],
+      "answer_in_block_type": "code"
+    },
+    {
+      "question": "What error class is raised on invalid configuration?",
+      "expected_answer": "ConfigurationError",
+      "answer_keywords": ["ConfigurationError"],
+      "answer_in_block_type": "code"
+    }
+  ]
 }

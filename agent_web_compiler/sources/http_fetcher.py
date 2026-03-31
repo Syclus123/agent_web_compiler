@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 
 import httpx
@@ -9,6 +10,53 @@ import httpx
 from agent_web_compiler.core.config import CompileConfig
 from agent_web_compiler.core.errors import FetchError
 from agent_web_compiler.core.interfaces import FetchResult
+
+
+def _detect_encoding(content: bytes, headers: dict[str, str]) -> str:
+    """Detect encoding from headers, meta tags, or BOM. Falls back to utf-8.
+
+    Check order:
+    1. Content-Type header charset
+    2. <meta charset="...">
+    3. <meta http-equiv="Content-Type" content="...charset=...">
+    4. BOM (byte order mark)
+    5. Default: utf-8
+    """
+    # 1. Content-Type header charset
+    ct = headers.get("content-type", "")
+    match = re.search(r"charset=([^\s;]+)", ct, re.IGNORECASE)
+    if match:
+        return match.group(1).strip().lower()
+
+    # For meta tag detection, peek at first 4096 bytes decoded loosely
+    head = content[:4096]
+    try:
+        head_str = head.decode("ascii", errors="ignore")
+    except Exception:
+        head_str = ""
+
+    # 2. <meta charset="...">
+    match = re.search(r'<meta[^>]+charset=["\']?([^"\'\s;>]+)', head_str, re.IGNORECASE)
+    if match:
+        return match.group(1).strip().lower()
+
+    # 3. <meta http-equiv="Content-Type" content="...charset=...">
+    match = re.search(
+        r'<meta[^>]+http-equiv=["\']?Content-Type["\']?[^>]+content=["\']?[^"\']*charset=([^"\'\s;>]+)',
+        head_str,
+        re.IGNORECASE,
+    )
+    if match:
+        return match.group(1).strip().lower()
+
+    # 4. BOM detection
+    if content[:3] == b"\xef\xbb\xbf":
+        return "utf-8"
+    if content[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return "utf-16"
+
+    # 5. Default
+    return "utf-8"
 
 
 class HTTPFetcher:

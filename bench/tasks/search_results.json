@@ -27,5 +27,19 @@
     ],
     "noise_phrases": ["Ad", "CloudPlatform", "privacy", "terms"],
     "main_action_label": "Search"
-  }
+  },
+  "qa_items": [
+    {
+      "question": "What is the first search result about?",
+      "expected_answer": "Django - high-level Python web framework",
+      "answer_keywords": ["Django"],
+      "answer_in_block_type": "paragraph"
+    },
+    {
+      "question": "How many total results were found?",
+      "expected_answer": "45,200,000 results",
+      "answer_keywords": ["45,200,000"],
+      "answer_in_block_type": "paragraph"
+    }
+  ]
 }

@@ -29,5 +29,25 @@
     ],
     "noise_phrases": ["cookie", "subscribe", "advertisement", "analytics"],
     "main_action_label": "Search"
-  }
+  },
+  "qa_items": [
+    {
+      "question": "Who is the author of the article?",
+      "expected_answer": "Sarah Chen",
+      "answer_keywords": ["Sarah", "Chen"],
+      "answer_in_block_type": "paragraph"
+    },
+    {
+      "question": "When was the article published?",
+      "expected_answer": "March 15, 2026",
+      "answer_keywords": ["March", "2026"],
+      "answer_in_block_type": "paragraph"
+    },
+    {
+      "question": "What programming language are the code examples written in?",
+      "expected_answer": "Python",
+      "answer_keywords": ["Python"],
+      "answer_in_block_type": "code"
+    }
+  ]
 }

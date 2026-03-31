@@ -66,8 +66,11 @@ class CompileConfig(BaseModel):
         description="PDF backend: auto, pymupdf, docling",
     )
 
-    # Network
-    timeout_seconds: float = Field(30.0, description="HTTP fetch timeout in seconds")
+    # Network / pipeline timeout
+    timeout_seconds: float = Field(
+        30.0,
+        description="Timeout in seconds for HTTP fetches and total pipeline compilation",
+    )
     user_agent: str = Field(
         "agent-web-compiler/0.1.0",
         description="User-Agent header for HTTP requests",

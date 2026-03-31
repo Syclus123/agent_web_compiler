@@ -35,5 +35,25 @@
     ],
     "noise_phrases": ["privacy", "terms"],
     "main_action_label": "Download PDF"
-  }
+  },
+  "qa_items": [
+    {
+      "question": "What methodology does the paper use?",
+      "expected_answer": "Comparison across six language pairs",
+      "answer_keywords": ["six language pairs"],
+      "answer_in_block_type": "paragraph"
+    },
+    {
+      "question": "What is the key finding about sparse attention?",
+      "expected_answer": "Sparse attention variants achieve comparable BLEU scores with 40% fewer FLOPs",
+      "answer_keywords": ["sparse attention", "BLEU"],
+      "answer_in_block_type": "paragraph"
+    },
+    {
+      "question": "What attention mechanism is discussed in detail?",
+      "expected_answer": "Multi-head self-attention from the Transformer architecture",
+      "answer_keywords": ["multi-head", "self-attention"],
+      "answer_in_block_type": "paragraph"
+    }
+  ]
 }

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 
 import lxml.html
@@ -9,6 +10,11 @@ from lxml.html import HtmlElement, tostring
 
 from agent_web_compiler.core.config import CompileConfig
 from agent_web_compiler.core.document import SiteProfile
+
+logger = logging.getLogger(__name__)
+
+# Maximum HTML size in bytes before truncation (2 MB).
+MAX_HTML_SIZE = 2 * 1024 * 1024
 
 
 class HTMLNormalizer:
@@ -80,12 +86,23 @@ class HTMLNormalizer:
         if not html or not html.strip():
             return ""
 
+        # Size guard: truncate very large HTML to prevent parser slowdowns.
+        if len(html.encode("utf-8", errors="replace")) > MAX_HTML_SIZE:
+            logger.warning(
+                "HTML exceeds %d bytes, truncating to limit before parsing",
+                MAX_HTML_SIZE,
+            )
+            html = html[:MAX_HTML_SIZE]
+
         tree = self._parse(html)
         if tree is None:
             return ""
 
         # Pass 1: strip always-remove tags
         self._remove_tags(tree)
+
+        # Pass 1a: strip hidden elements (display:none, aria-hidden, hidden attr)
+        self._remove_hidden_elements(tree)
 
         # Pass 1b: remove elements from site profile selectors
         if self._site_profile:
@@ -104,7 +121,14 @@ class HTMLNormalizer:
         # Pass 4: remove noise-patterned elements with low scores
         self._remove_noise(tree, main_content)
 
-        return self._serialize(tree)
+        result = self._serialize(tree)
+
+        # Post-normalization emptiness check
+        if not result or not result.strip():
+            logger.warning("HTML is empty after normalization")
+            return ""
+
+        return result
 
     # ------------------------------------------------------------------
     # Parsing helpers
@@ -135,6 +159,39 @@ class HTMLNormalizer:
                 parent = el.getparent()
                 if parent is not None:
                     parent.remove(el)
+
+    # ------------------------------------------------------------------
+    # Pass 1a: remove hidden elements
+    # ------------------------------------------------------------------
+
+    _HIDDEN_STYLE_RE = re.compile(
+        r"display\s*:\s*none|visibility\s*:\s*hidden", re.IGNORECASE,
+    )
+
+    def _remove_hidden_elements(self, tree: HtmlElement) -> None:
+        """Remove elements with display:none, visibility:hidden, hidden attr, or aria-hidden."""
+        to_remove: list[HtmlElement] = []
+        for el in tree.iter():
+            if not isinstance(el, HtmlElement):
+                continue
+            # hidden attribute
+            if el.get("hidden") is not None:
+                to_remove.append(el)
+                continue
+            # aria-hidden="true"
+            if el.get("aria-hidden", "").lower() == "true":
+                to_remove.append(el)
+                continue
+            # inline style
+            style = el.get("style", "")
+            if style and self._HIDDEN_STYLE_RE.search(style):
+                to_remove.append(el)
+                continue
+
+        for el in to_remove:
+            parent = el.getparent()
+            if parent is not None:
+                parent.remove(el)
 
     # ------------------------------------------------------------------
     # Pass 2: find main content area

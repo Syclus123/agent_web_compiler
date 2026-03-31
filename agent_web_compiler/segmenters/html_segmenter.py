@@ -72,6 +72,10 @@ class HTMLSegmenter:
             if tag is None:
                 continue
 
+            # Skip hidden elements (display:none, visibility:hidden, aria-hidden, hidden attr)
+            if self._is_hidden(element):
+                continue
+
             block_type = self._classify(element, tag)
             if block_type is None:
                 continue
@@ -82,8 +86,12 @@ class HTMLSegmenter:
                 continue
 
             text = (element.text_content() or "").strip()
+            # For images: use alt text since text_content is empty
+            if block_type is BlockType.IMAGE:
+                alt = element.get("alt", "")
+                text = alt.strip() if alt else "[Image]"
             # Collapse whitespace for non-code blocks
-            if block_type is BlockType.CODE:
+            elif block_type is BlockType.CODE:
                 # For code: preserve structure but strip leading/trailing
                 text = text.strip()
             elif block_type is BlockType.LIST:
@@ -170,6 +178,38 @@ class HTMLSegmenter:
         return blocks
 
     # ------------------------------------------------------------------ #
+    # Visibility helpers
+    # ------------------------------------------------------------------ #
+
+    _HIDDEN_STYLE_RE = re.compile(
+        r"display\s*:\s*none|visibility\s*:\s*hidden", re.IGNORECASE,
+    )
+
+    @classmethod
+    def _is_hidden(cls, element: HtmlElement) -> bool:
+        """Return True if element or any ancestor is hidden.
+
+        Checks: style="display:none", style="visibility:hidden",
+        hidden attribute, aria-hidden="true".
+        """
+        el: HtmlElement | None = element
+        while el is not None:
+            if not isinstance(el, HtmlElement):
+                break
+            # hidden attribute
+            if el.get("hidden") is not None:
+                return True
+            # aria-hidden
+            if el.get("aria-hidden", "").lower() == "true":
+                return True
+            # inline style
+            style = el.get("style", "")
+            if style and cls._HIDDEN_STYLE_RE.search(style):
+                return True
+            el = el.getparent()
+        return False
+
+    # ------------------------------------------------------------------ #
     # Classification helpers
     # ------------------------------------------------------------------ #
 
@@ -229,9 +269,12 @@ class HTMLSegmenter:
     def _table_dimensions(table: HtmlElement) -> tuple[int, int]:
         """Return ``(row_count, col_count)`` for a ``<table>`` element.
 
-        Accounts for ``colspan`` attributes when counting columns.
+        Accounts for ``colspan`` attributes when counting columns and
+        ``rowspan`` when counting unique rows.
         """
         rows = table.findall(".//tr")
+        # Count unique rows by deduplicating (handles rowspan conceptually —
+        # the actual row count is the number of <tr> elements).
         row_count = len(rows)
         col_count = 0
         if rows:
@@ -246,25 +289,66 @@ class HTMLSegmenter:
 
     @staticmethod
     def _extract_table_data(table: HtmlElement) -> tuple[list[str] | None, list[list[str]] | None]:
-        """Extract structured headers and rows from a table element."""
-        rows = table.findall(".//tr")
-        if not rows:
-            return None, None
+        """Extract structured headers and rows from a table element.
+
+        Handles:
+        - Tables with <thead> and <tbody> sections
+        - Tables with no <tr> (raw text in table)
+        - Tables with mixed th/td in data rows
+        """
+        # First try to extract from thead/tbody structure
+        thead = table.find(".//thead")
+        tbody = table.find(".//tbody")
 
         headers: list[str] | None = None
         data_rows: list[list[str]] = []
 
-        for i, row in enumerate(rows):
+        if thead is not None:
+            header_rows = thead.findall("tr")
+            if header_rows:
+                ths = header_rows[0].findall("th")
+                if not ths:
+                    ths = header_rows[0].findall("td")
+                if ths:
+                    headers = [
+                        re.sub(r"\s+", " ", (th.text_content() or "")).strip() for th in ths
+                    ]
+
+        # Get body rows from tbody if present, otherwise all rows
+        if tbody is not None:
+            body_rows = tbody.findall("tr")
+        else:
+            body_rows = table.findall(".//tr")
+
+        for i, row in enumerate(body_rows):
             ths = row.findall("th")
             tds = row.findall("td")
-            if ths and i == 0:
-                headers = [re.sub(r"\s+", " ", (th.text_content() or "")).strip() for th in ths]
+
+            # If we already got headers from thead, skip header detection
+            if headers is not None:
+                # Collect all cells (mixed th/td)
+                cells = tds + ths if tds else ths
+                if cells:
+                    data_rows.append(
+                        [re.sub(r"\s+", " ", (c.text_content() or "")).strip() for c in cells]
+                    )
+            elif ths and not tds and i == 0:
+                # First row with only <th> — treat as headers
+                headers = [
+                    re.sub(r"\s+", " ", (th.text_content() or "")).strip() for th in ths
+                ]
             elif tds:
+                # Data row — include any mixed th cells too
+                all_cells = list(row)
+                cells = [
+                    c for c in all_cells
+                    if isinstance(c, HtmlElement) and c.tag in ("td", "th")
+                ]
                 data_rows.append(
-                    [re.sub(r"\s+", " ", (td.text_content() or "")).strip() for td in tds]
+                    [re.sub(r"\s+", " ", (c.text_content() or "")).strip() for c in cells]
                 )
             elif ths and i > 0:
-                # Sometimes header rows appear later
+                # Later header-only rows treated as data
                 data_rows.append(
                     [re.sub(r"\s+", " ", (th.text_content() or "")).strip() for th in ths]
                 )

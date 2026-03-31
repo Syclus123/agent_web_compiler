@@ -8,6 +8,7 @@ Pipeline stages:
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -16,8 +17,40 @@ from agent_web_compiler.core.action import Action
 from agent_web_compiler.core.block import Block
 from agent_web_compiler.core.config import CompileConfig, RenderMode
 from agent_web_compiler.core.document import AgentDocument, SourceType
+from agent_web_compiler.core.errors import ParseError
 
 logger = logging.getLogger(__name__)
+
+# Heuristic: bytes that are extremely unlikely in text/HTML
+_BINARY_PROBE_SIZE = 512
+_BINARY_THRESHOLD = 0.30  # if >30% of first bytes are non-text, treat as binary
+
+
+def _looks_binary(content: str) -> bool:
+    """Return True if *content* appears to be binary (not text/HTML)."""
+    probe = content[:_BINARY_PROBE_SIZE]
+    if not probe:
+        return False
+    non_text = sum(1 for ch in probe if ord(ch) < 9 or (13 < ord(ch) < 32))
+    return (non_text / len(probe)) > _BINARY_THRESHOLD
+
+
+def _looks_like_html(content: str) -> bool:
+    """Return True if *content* has at least one HTML tag."""
+    return bool(re.search(r"<[a-zA-Z][^>]*>", content))
+
+
+def _wrap_plain_text(content: str) -> str:
+    """Wrap plain text content in minimal HTML structure."""
+    lines = content.strip().splitlines()
+    paragraphs = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped:
+            from html import escape
+            paragraphs.append(f"<p>{escape(stripped)}</p>")
+    body = "\n".join(paragraphs) if paragraphs else "<p></p>"
+    return f"<html><body>{body}</body></html>"
 
 
 class HTMLCompiler:
@@ -43,9 +76,28 @@ class HTMLCompiler:
 
         Returns:
             A fully populated AgentDocument.
+
+        Raises:
+            ParseError: If the content is binary and cannot be parsed.
         """
         if config is None:
             config = CompileConfig()
+
+        warnings: list[str] = []
+
+        # --- Content type detection ---
+        if _looks_binary(html):
+            raise ParseError(
+                "Content appears to be binary (not text/HTML). "
+                "Binary content cannot be compiled.",
+                context={"content_length": len(html)},
+            )
+
+        if not _looks_like_html(html) and html.strip():
+                # Plain text — wrap in HTML
+                warnings.append("Input has no HTML tags; wrapped plain text in <p> elements")
+                html = _wrap_plain_text(html)
+            # else: empty input, will produce empty doc
 
         # --- Cache check ---
         from agent_web_compiler.pipeline.cache import CompilationCache
@@ -65,8 +117,17 @@ class HTMLCompiler:
 
         timings: dict[str, float] = {}
         pipeline_start = time.perf_counter()
+        deadline = pipeline_start + config.timeout_seconds
         dynamic_rendered = False
         render_metadata: dict[str, Any] = {}
+        partial = False
+
+        def _check_timeout(stage_name: str) -> bool:
+            """Return True if we have exceeded the deadline."""
+            if time.perf_counter() > deadline:
+                warnings.append(f"Pipeline timeout after {config.timeout_seconds}s at stage '{stage_name}'")
+                return True
+            return False
 
         # --- Stage 0: Dynamic rendering (when applicable) ---
         if source_url and config.render in (RenderMode.AUTO, RenderMode.ALWAYS):
@@ -84,29 +145,45 @@ class HTMLCompiler:
         cleaned_html = HTMLNormalizer().normalize(html, config)
         timings["normalize_ms"] = (time.perf_counter() - t0) * 1000
 
+        if _check_timeout("normalize"):
+            partial = True
+
         # --- Stage 2: Segment ---
-        t0 = time.perf_counter()
-        from agent_web_compiler.segmenters.html_segmenter import HTMLSegmenter
+        blocks: list[Block] = []
+        if not partial:
+            t0 = time.perf_counter()
+            from agent_web_compiler.segmenters.html_segmenter import HTMLSegmenter
 
-        blocks: list[Block] = HTMLSegmenter().segment(cleaned_html, config)
-        timings["segment_ms"] = (time.perf_counter() - t0) * 1000
+            blocks = HTMLSegmenter().segment(cleaned_html, config)
+            timings["segment_ms"] = (time.perf_counter() - t0) * 1000
 
-        # --- Stage 2a+: Entity extraction (before salience so entities can inform scoring) ---
-        t0 = time.perf_counter()
-        from agent_web_compiler.extractors.entity_extractor import EntityExtractor
+            if _check_timeout("segment"):
+                partial = True
 
-        blocks = EntityExtractor().annotate_blocks(blocks)
-        timings["entity_extraction_ms"] = (time.perf_counter() - t0) * 1000
+        # --- Stage 2a+: Entity extraction ---
+        if not partial and blocks:
+            t0 = time.perf_counter()
+            from agent_web_compiler.extractors.entity_extractor import EntityExtractor
+
+            blocks = EntityExtractor().annotate_blocks(blocks)
+            timings["entity_extraction_ms"] = (time.perf_counter() - t0) * 1000
+
+            if _check_timeout("entity_extraction"):
+                partial = True
 
         # --- Stage 2b: Advanced salience scoring ---
-        t0 = time.perf_counter()
-        from agent_web_compiler.segmenters.salience import SalienceScorer
+        if not partial and blocks:
+            t0 = time.perf_counter()
+            from agent_web_compiler.segmenters.salience import SalienceScorer
 
-        blocks = SalienceScorer().score_blocks(blocks, cleaned_html)
-        timings["salience_ms"] = (time.perf_counter() - t0) * 1000
+            blocks = SalienceScorer().score_blocks(blocks, cleaned_html)
+            timings["salience_ms"] = (time.perf_counter() - t0) * 1000
+
+            if _check_timeout("salience"):
+                partial = True
 
         # --- Stage 2c: Query-aware filtering ---
-        if config.query:
+        if not partial and config.query:
             t0 = time.perf_counter()
             from agent_web_compiler.segmenters.query_filter import QueryAwareFilter
 
@@ -117,30 +194,35 @@ class HTMLCompiler:
         if config.min_importance > 0:
             blocks = [b for b in blocks if b.importance >= config.min_importance]
         if config.max_blocks is not None and config.max_blocks > 0 and not config.query:
-            # When query is set, max_blocks is already applied by QueryAwareFilter.
             blocks.sort(key=lambda b: b.importance, reverse=True)
             blocks = blocks[: config.max_blocks]
 
         # --- Stage 3: Extract actions (from original HTML) ---
         actions: list[Action] = []
-        if config.include_actions:
+        if not partial and config.include_actions:
             t0 = time.perf_counter()
             from agent_web_compiler.extractors.action_extractor import ActionExtractor
 
             actions = ActionExtractor().extract(html, config)
             timings["extract_actions_ms"] = (time.perf_counter() - t0) * 1000
 
-        # --- Stage 3b: Extract assets ---
-        t0 = time.perf_counter()
-        from agent_web_compiler.core.document import Asset
-        from agent_web_compiler.extractors.asset_extractor import AssetExtractor
+            if _check_timeout("extract_actions"):
+                partial = True
 
-        assets: list[Asset] = AssetExtractor().extract(html)
-        timings["extract_assets_ms"] = (time.perf_counter() - t0) * 1000
+        # --- Stage 3b: Extract assets ---
+        from agent_web_compiler.core.document import Asset
+
+        assets: list[Asset] = []
+        if not partial:
+            t0 = time.perf_counter()
+            from agent_web_compiler.extractors.asset_extractor import AssetExtractor
+
+            assets = AssetExtractor().extract(html)
+            timings["extract_assets_ms"] = (time.perf_counter() - t0) * 1000
 
         # --- Stage 3c: Build navigation graph ---
         nav_graph_dict: dict | None = None
-        if actions:
+        if not partial and actions:
             t0 = time.perf_counter()
             from agent_web_compiler.extractors.nav_graph import NavGraphBuilder
 
@@ -152,7 +234,7 @@ class HTMLCompiler:
         provenance_index = self._build_provenance_index(blocks)
 
         # --- Stage 4: Align provenance ---
-        if config.include_provenance:
+        if not partial and config.include_provenance:
             t0 = time.perf_counter()
             from agent_web_compiler.aligners.dom_aligner import DOMAligner
 
@@ -189,6 +271,11 @@ class HTMLCompiler:
 
         timings["total_ms"] = (time.perf_counter() - pipeline_start) * 1000
 
+        # --- Merge warnings ---
+        if partial:
+            warnings.append("Compilation result is partial due to timeout")
+        quality.warnings.extend(warnings)
+
         # --- Extract title ---
         title = self._extract_title(html, blocks)
 
@@ -197,13 +284,11 @@ class HTMLCompiler:
         if config.debug:
             debug["timings"] = timings
             if render_metadata:
-                # Include render debug info (excluding large binary data)
                 debug["render"] = {
                     k: v
                     for k, v in render_metadata.items()
                     if k not in ("screenshot_png",)
                 }
-                # Store screenshot separately to keep debug dict manageable
                 if "screenshot_png" in render_metadata:
                     debug["screenshot_png"] = render_metadata["screenshot_png"]
 

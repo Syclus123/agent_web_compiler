@@ -320,6 +320,53 @@ def bench_compare(fixtures_dir: str, output: str | None) -> None:
     console.print()
 
 
+@bench.command(name="qa")
+@click.option(
+    "--fixtures-dir",
+    default="bench/tasks",
+    help="Path to fixtures directory",
+    type=click.Path(exists=True),
+)
+@click.option("-o", "--output", default=None, help="Output report path (markdown file)")
+def bench_qa(fixtures_dir: str, output: str | None) -> None:
+    """Run QA-based evaluation on fixtures with qa_items."""
+    from bench.eval.qa_eval import QAEvaluator
+
+    evaluator = QAEvaluator()
+    console.print(f"\n[bold blue]Running QA evaluation[/bold blue] from {fixtures_dir}\n")
+
+    try:
+        results = evaluator.evaluate_all(fixtures_dir)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    if not results:
+        console.print("[yellow]No fixtures with qa_items found.[/yellow]")
+        return
+
+    report = evaluator.generate_report(results)
+
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(report)
+        console.print(f"[green]Report written to {output_path}[/green]")
+    else:
+        console.print(report)
+
+    # Print summary
+    console.print(f"\n[bold green]Evaluated {len(results)} fixtures[/bold green]")
+    for r in results:
+        status = "[green]PASS[/green]" if r.answer_recall >= 0.5 else "[yellow]WARN[/yellow]"
+        console.print(
+            f"  {status} {r.fixture_name}: "
+            f"{r.answers_found}/{r.total_questions} answered "
+            f"({r.answer_recall:.0%} recall)"
+        )
+    console.print()
+
+
 @bench.command(name="inspect")
 @click.argument("path", type=click.Path(exists=True))
 def bench_inspect(path: str) -> None:

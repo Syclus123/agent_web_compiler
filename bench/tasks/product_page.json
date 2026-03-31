@@ -30,5 +30,25 @@
     ],
     "noise_phrases": ["tracking pixel", "analytics", "promo banner"],
     "main_action_label": "Add to Cart"
-  }
+  },
+  "qa_items": [
+    {
+      "question": "What is the price of the product?",
+      "expected_answer": "$549.00",
+      "answer_keywords": ["549", "price"],
+      "answer_in_block_type": "paragraph"
+    },
+    {
+      "question": "What is the weight capacity?",
+      "expected_answer": "350 lbs",
+      "answer_keywords": ["350", "lbs"],
+      "answer_in_block_type": "table"
+    },
+    {
+      "question": "What is the warranty period?",
+      "expected_answer": "5-year warranty",
+      "answer_keywords": ["5-year", "warranty"],
+      "answer_in_block_type": "paragraph"
+    }
+  ]
 }

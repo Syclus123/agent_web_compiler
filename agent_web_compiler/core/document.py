@@ -13,7 +13,7 @@ from agent_web_compiler.core.action import Action
 from agent_web_compiler.core.block import Block
 
 # Schema version — bump on breaking changes
-SCHEMA_VERSION = "0.3.0"
+SCHEMA_VERSION = "0.5.0"
 
 
 class SourceType(str, Enum):
