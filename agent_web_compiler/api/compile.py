@@ -13,11 +13,13 @@ Usage:
 from __future__ import annotations
 
 import json as _json
+from collections.abc import Generator
 
 from agent_web_compiler.api.batch import BatchResult
 from agent_web_compiler.core.config import CompileConfig, CompileMode, RenderMode
 from agent_web_compiler.core.document import AgentDocument
 from agent_web_compiler.core.errors import FetchError
+from agent_web_compiler.pipeline.stream_compiler import StreamEvent
 
 
 def _looks_like_json(content: str) -> bool:
@@ -267,3 +269,47 @@ def compile_batch(
 
     compiler = BatchCompiler()
     return compiler.compile_batch(batch_items, config=config, max_concurrency=max_concurrency)
+
+
+def compile_stream(
+    html: str,
+    *,
+    source_url: str | None = None,
+    mode: str = "balanced",
+    include_actions: bool = True,
+    include_provenance: bool = True,
+    debug: bool = False,
+    token_budget: int | None = None,
+    config: CompileConfig | None = None,
+) -> Generator[StreamEvent, None, None]:
+    """Stream compilation events as blocks are extracted.
+
+    Yields StreamEvent objects incrementally. The final event is
+    "complete" (with the full AgentDocument) or "error".
+
+    Args:
+        html: Raw HTML string to compile.
+        source_url: Optional source URL for provenance tracking.
+        mode: Compilation mode — "fast", "balanced", or "high_recall".
+        include_actions: Whether to extract action affordances.
+        include_provenance: Whether to include provenance tracking.
+        debug: Whether to include debug metadata.
+        token_budget: Optional token budget for early termination.
+        config: Full config object (overrides individual params if provided).
+
+    Yields:
+        StreamEvent for each pipeline milestone or extracted element.
+    """
+    if config is None:
+        config = CompileConfig(
+            mode=CompileMode(mode),
+            include_actions=include_actions,
+            include_provenance=include_provenance,
+            debug=debug,
+            token_budget=token_budget,
+        )
+
+    from agent_web_compiler.pipeline.stream_compiler import StreamCompiler
+
+    compiler = StreamCompiler()
+    yield from compiler.compile_stream(html, source_url=source_url, config=config)

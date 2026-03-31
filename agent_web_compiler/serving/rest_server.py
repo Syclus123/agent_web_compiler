@@ -23,6 +23,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from starlette.responses import StreamingResponse
 
 from agent_web_compiler.core.config import CompileConfig, CompileMode, RenderMode
 from agent_web_compiler.core.document import SCHEMA_VERSION, AgentDocument
@@ -306,6 +307,86 @@ def create_app() -> FastAPI:
         return JSONResponse(
             content={"actions": [a.model_dump(mode="json") for a in actions]},
             headers=_compile_headers(doc, compile_time),
+        )
+
+    # ------------------------------------------------------------------
+    # POST /v1/compile/stream — SSE streaming compilation
+    # ------------------------------------------------------------------
+
+    @app.post("/v1/compile/stream", response_model=None)
+    async def compile_stream_endpoint(req: CompileRequest) -> StreamingResponse:
+        """Stream compilation events via Server-Sent Events.
+
+        Each event is formatted as an SSE message with ``event:`` and
+        ``data:`` fields. Event types: ``block``, ``action``, ``progress``,
+        ``complete``, ``budget_reached``, ``error``.
+        """
+        import json
+
+        _validate_compile_request(req)
+        config = _build_config(req)
+
+        from agent_web_compiler.pipeline.stream_compiler import StreamCompiler
+
+        compiler = StreamCompiler()
+
+        # Determine source HTML
+        html: str | None = req.html
+        source_url: str | None = req.url
+
+        if req.url is not None and html is None:
+            try:
+                from agent_web_compiler.sources.http_fetcher import HTTPFetcher
+
+                fetcher = HTTPFetcher()
+                result = fetcher.fetch_sync(req.url, config)
+                if not isinstance(result.content, str):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Expected text content from URL.",
+                    )
+                html = result.content
+            except FetchError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail={"error_code": "FETCH_ERROR", "message": str(exc)},
+                ) from exc
+
+        if req.file_path is not None and html is None:
+            from agent_web_compiler.sources.file_reader import FileReader
+
+            reader = FileReader()
+            file_result = reader.read(req.file_path)
+            html = (
+                file_result.content
+                if isinstance(file_result.content, str)
+                else file_result.content.decode("utf-8")
+            )
+
+        if html is None:
+            raise HTTPException(status_code=400, detail="No source provided.")
+
+        async def event_generator():  # type: ignore[return]
+            async for event in compiler.compile_stream_async(
+                html, source_url=source_url, config=config
+            ):
+                sse_data = json.dumps(
+                    {
+                        "event_type": event.event_type,
+                        "data": event.data,
+                        "sequence": event.sequence,
+                    }
+                )
+                yield f"event: {event.event_type}\ndata: {sse_data}\n\n"
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
         )
 
     # ------------------------------------------------------------------
