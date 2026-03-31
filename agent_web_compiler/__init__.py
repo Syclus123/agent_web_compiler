@@ -10,6 +10,11 @@ Usage:
     search = AgentSearch()
     search.ingest_url("https://example.com")
     answer = search.answer("What is the rate limit?")
+
+    # Custom pipeline
+    from agent_web_compiler import PipelineBuilder
+    pipeline = PipelineBuilder().skip_actions().build()
+    doc = pipeline.compile(html)
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ from agent_web_compiler.api.compile import (
     compile_stream,
     compile_url,
 )
+from agent_web_compiler.pipeline.builder import PipelineBuilder
 from agent_web_compiler.search.agent_search import AgentSearch
 
 __all__ = [
@@ -30,6 +36,8 @@ __all__ = [
     "compile_html",
     "compile_batch",
     "compile_stream",
+    # Extensible pipeline
+    "PipelineBuilder",
     # Search (primary entry point)
     "AgentSearch",
     # Version
