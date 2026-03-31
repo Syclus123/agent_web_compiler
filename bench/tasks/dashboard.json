@@ -1,0 +1,35 @@
+{
+  "name": "dashboard",
+  "description": "Data dashboard with stats cards, data tables, chart placeholders, filter controls, and export button",
+  "source_type": "html",
+  "html_file": "dashboard.html",
+  "expected": {
+    "headings": [
+      "Operations Dashboard",
+      "Key Metrics",
+      "Revenue Trend",
+      "Top Products",
+      "Recent Alerts"
+    ],
+    "min_blocks": 10,
+    "min_tables": 2,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "$4,287,350",
+      "284,729",
+      "3.42%",
+      "99.97%",
+      "Analytics Pro",
+      "$1,154,100",
+      "Payment gateway timeout"
+    ],
+    "expected_actions": [
+      {"type": "click", "label_contains": "Export"},
+      {"type": "click", "label_contains": "Refresh"},
+      {"type": "click", "label_contains": "Apply"},
+      {"type": "select", "label_contains": "Region"}
+    ],
+    "noise_phrases": ["all rights reserved", "privacy"],
+    "main_action_label": "Export"
+  }
+}

@@ -79,5 +79,11 @@ class CompileConfig(BaseModel):
     )
     cache_ttl: float = Field(3600.0, description="Cache TTL in seconds")
 
+    # Token budget
+    token_budget: int | None = Field(
+        None,
+        description="Target token count for output. None = unlimited.",
+    )
+
     # Debug
     debug: bool = Field(False, description="Enable debug metadata in output")

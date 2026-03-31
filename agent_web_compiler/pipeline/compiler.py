@@ -91,6 +91,13 @@ class HTMLCompiler:
         blocks: list[Block] = HTMLSegmenter().segment(cleaned_html, config)
         timings["segment_ms"] = (time.perf_counter() - t0) * 1000
 
+        # --- Stage 2a+: Entity extraction (before salience so entities can inform scoring) ---
+        t0 = time.perf_counter()
+        from agent_web_compiler.extractors.entity_extractor import EntityExtractor
+
+        blocks = EntityExtractor().annotate_blocks(blocks)
+        timings["entity_extraction_ms"] = (time.perf_counter() - t0) * 1000
+
         # --- Stage 2b: Advanced salience scoring ---
         t0 = time.perf_counter()
         from agent_web_compiler.segmenters.salience import SalienceScorer
@@ -131,7 +138,17 @@ class HTMLCompiler:
         assets: list[Asset] = AssetExtractor().extract(html)
         timings["extract_assets_ms"] = (time.perf_counter() - t0) * 1000
 
-        # --- Stage 3c: Build provenance index ---
+        # --- Stage 3c: Build navigation graph ---
+        nav_graph_dict: dict | None = None
+        if actions:
+            t0 = time.perf_counter()
+            from agent_web_compiler.extractors.nav_graph import NavGraphBuilder
+
+            nav_graph = NavGraphBuilder().build(actions, source_url=source_url)
+            nav_graph_dict = nav_graph.to_dict()
+            timings["nav_graph_ms"] = (time.perf_counter() - t0) * 1000
+
+        # --- Stage 3d: Build provenance index ---
         provenance_index = self._build_provenance_index(blocks)
 
         # --- Stage 4: Align provenance ---
@@ -158,6 +175,17 @@ class HTMLCompiler:
 
         canonical_markdown = to_markdown(blocks)
         timings["markdown_ms"] = (time.perf_counter() - t0) * 1000
+
+        # --- Stage 6b: Token budget compression ---
+        if config.token_budget is not None and config.token_budget > 0:
+            t0 = time.perf_counter()
+            from agent_web_compiler.exporters.token_budget import (
+                TokenBudgetController,
+            )
+
+            budget_ctrl = TokenBudgetController(config.token_budget)
+            canonical_markdown = budget_ctrl.to_budget_markdown(blocks)
+            timings["token_budget_ms"] = (time.perf_counter() - t0) * 1000
 
         timings["total_ms"] = (time.perf_counter() - pipeline_start) * 1000
 
@@ -189,6 +217,7 @@ class HTMLCompiler:
             blocks=blocks,
             canonical_markdown=canonical_markdown,
             actions=actions,
+            navigation_graph=nav_graph_dict,
             assets=assets,
             provenance_index=provenance_index,
             quality=quality,

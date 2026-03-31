@@ -1,0 +1,35 @@
+{
+  "name": "checkout_form",
+  "description": "E-commerce checkout with shipping form, payment fields, order summary table, and place order button",
+  "source_type": "html",
+  "html_file": "checkout_form.html",
+  "expected": {
+    "headings": [
+      "Checkout",
+      "Contact Information",
+      "Shipping Address",
+      "Shipping Method",
+      "Payment Method",
+      "Order Summary"
+    ],
+    "min_blocks": 8,
+    "min_tables": 1,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "$342.03",
+      "Wireless Noise-Canceling Headphones",
+      "$249.99",
+      "256-bit SSL encryption",
+      "30-day return policy",
+      "Express Shipping",
+      "$12.99"
+    ],
+    "expected_actions": [
+      {"type": "submit", "label_contains": "Place Order"},
+      {"type": "click", "label_contains": "Apply"},
+      {"type": "navigate", "label_contains": "Back to Cart"}
+    ],
+    "noise_phrases": ["analytics", "all rights reserved", "privacy policy"],
+    "main_action_label": "Place Order"
+  }
+}

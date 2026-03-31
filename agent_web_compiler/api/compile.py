@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json as _json
 
+from agent_web_compiler.api.batch import BatchResult
 from agent_web_compiler.core.config import CompileConfig, CompileMode, RenderMode
 from agent_web_compiler.core.document import AgentDocument
 from agent_web_compiler.core.errors import FetchError
@@ -234,3 +235,35 @@ def compile_file(
     # Default: treat as HTML
     content = result.content if isinstance(result.content, str) else result.content.decode("utf-8")
     return compile_html(content, source_url=None, config=config)
+
+
+def compile_batch(
+    items: list[dict],
+    config: CompileConfig | None = None,
+    max_concurrency: int = 5,
+) -> BatchResult:
+    """Compile multiple sources in parallel with shared context.
+
+    When multiple URLs share a domain, automatically learns a SiteProfile
+    and applies it to improve normalization.
+
+    Args:
+        items: List of dicts with "source" (required) and "source_type" (optional, default "auto").
+        config: Shared compilation config. Uses defaults if not provided.
+        max_concurrency: Maximum number of concurrent compilations.
+
+    Returns:
+        A BatchResult with compiled documents and any errors.
+    """
+    from agent_web_compiler.api.batch import BatchCompiler, BatchItem
+
+    batch_items = [
+        BatchItem(
+            source=item["source"],
+            source_type=item.get("source_type", "auto"),
+        )
+        for item in items
+    ]
+
+    compiler = BatchCompiler()
+    return compiler.compile_batch(batch_items, config=config, max_concurrency=max_concurrency)

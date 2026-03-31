@@ -1,0 +1,40 @@
+{
+  "name": "wiki_article",
+  "description": "Wikipedia-style article with TOC, sections, citations, infobox table, categories, and edit links",
+  "source_type": "html",
+  "html_file": "wiki_article.html",
+  "expected": {
+    "headings": [
+      "Monarch Butterfly",
+      "Description",
+      "Taxonomy and Classification",
+      "Distribution and Habitat",
+      "Migration",
+      "Life Cycle",
+      "Conservation Status",
+      "Cultural Significance",
+      "References",
+      "External Links"
+    ],
+    "min_blocks": 15,
+    "min_tables": 2,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "Danaus plexippus",
+      "4,800 kilometers",
+      "milkweed",
+      "Endangered",
+      "IUCN",
+      "Day of the Dead",
+      "cardiac glycosides",
+      "oyamel fir forests"
+    ],
+    "expected_actions": [
+      {"type": "navigate", "label_contains": "Main Page"},
+      {"type": "submit", "label_contains": "Search"},
+      {"type": "navigate", "label_contains": "edit"}
+    ],
+    "noise_phrases": ["privacy policy", "terms of use", "all rights reserved"],
+    "main_action_label": "Search"
+  }
+}

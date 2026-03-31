@@ -1,0 +1,35 @@
+{
+  "name": "recipe_page",
+  "description": "Recipe page with ingredients list, step-by-step instructions, nutrition table, print button, rating, and servings selector",
+  "source_type": "html",
+  "html_file": "recipe_page.html",
+  "expected": {
+    "headings": [
+      "Classic Margherita Pizza",
+      "Ingredients",
+      "Instructions",
+      "Nutrition Information",
+      "Chef's Notes"
+    ],
+    "min_blocks": 10,
+    "min_tables": 1,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "San Marzano tomatoes",
+      "mozzarella di bufala",
+      "72-hour cold-fermented",
+      "685 kcal",
+      "Tipo 00 flour",
+      "500°F",
+      "4.8 out of 5"
+    ],
+    "expected_actions": [
+      {"type": "click", "label_contains": "Print"},
+      {"type": "click", "label_contains": "Save"},
+      {"type": "select", "label_contains": "Servings"},
+      {"type": "submit", "label_contains": "Search"}
+    ],
+    "noise_phrases": ["cookie", "analytics", "privacy policy", "advertisement"],
+    "main_action_label": "Print"
+  }
+}

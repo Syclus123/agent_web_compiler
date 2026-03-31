@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Is Rust the right choice for web backends? — DevForum</title>
+</head>
+<body>
+    <header class="site-header">
+        <nav class="main-nav">
+            <a href="/" class="logo">DevForum</a>
+            <ul class="nav-links">
+                <li><a href="/categories">Categories</a></li>
+                <li><a href="/latest">Latest</a></li>
+                <li><a href="/top">Top</a></li>
+                <li><a href="/users">Users</a></li>
+            </ul>
+            <form class="search-form" action="/search" method="get">
+                <input type="text" name="q" placeholder="Search discussions..." aria-label="Search">
+                <button type="submit">Search</button>
+            </form>
+            <div class="user-actions">
+                <a href="/new-topic" class="btn-new-topic">New Topic</a>
+                <a href="/profile">Profile</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="forum-content">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/">Home</a> &gt; <a href="/categories/programming">Programming</a> &gt; <a href="/categories/rust">Rust</a>
+        </nav>
+
+        <article class="thread">
+            <header class="thread-header">
+                <h1>Is Rust the right choice for web backends in 2025?</h1>
+                <div class="thread-meta">
+                    <span class="tag"><a href="/tags/rust">rust</a></span>
+                    <span class="tag"><a href="/tags/web">web</a></span>
+                    <span class="tag"><a href="/tags/backend">backend</a></span>
+                    <span class="views">2,847 views</span>
+                    <span class="replies">34 replies</span>
+                </div>
+            </header>
+
+            <!-- Original post -->
+            <div class="post original-post" id="post-1">
+                <div class="post-sidebar">
+                    <img src="/avatars/rustacean42.jpg" alt="" class="avatar" width="48" height="48">
+                    <span class="username"><a href="/users/rustacean42">rustacean42</a></span>
+                    <span class="user-title">Regular</span>
+                    <span class="post-count">142 posts</span>
+                </div>
+                <div class="post-content">
+                    <div class="post-header">
+                        <time datetime="2025-06-15T10:30:00Z">June 15, 2025, 10:30 AM</time>
+                    </div>
+                    <div class="post-body">
+                        <p>I have been building web backends in Python (FastAPI) and Node.js (Express) for the past 6 years. Our team is evaluating Rust with Axum for a new high-throughput microservice that needs to handle 50K requests per second with p99 latency under 10ms.</p>
+                        <p>Our current Python service tops out at about 5K req/s on similar hardware, and the Go alternative we benchmarked gets to about 30K req/s. The Rust prototype using Axum hit 65K req/s with p99 at 3ms, which is impressive.</p>
+                        <p>However, I am concerned about:</p>
+                        <ul>
+                            <li>Developer productivity — the borrow checker is a steep learning curve for our team</li>
+                            <li>Ecosystem maturity — are the ORM and database libraries production-ready?</li>
+                            <li>Hiring — can we find Rust developers, or do we need to train?</li>
+                            <li>Compile times — our CI pipeline already takes 20 minutes</li>
+                        </ul>
+                        <p>Has anyone made this transition? What were the real-world trade-offs? I would love to hear from teams that have run Rust web services in production for more than a year.</p>
+                    </div>
+                    <div class="post-actions">
+                        <button class="btn-vote upvote" data-post="1">▲ 47</button>
+                        <button class="btn-vote downvote" data-post="1">▼</button>
+                        <button class="btn-reply" data-post="1">Reply</button>
+                        <button class="btn-bookmark" data-post="1">Bookmark</button>
+                        <button class="btn-share" data-post="1">Share</button>
+                        <button class="btn-report" data-post="1">Report</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reply 1 -->
+            <div class="post reply" id="post-2">
+                <div class="post-sidebar">
+                    <img src="/avatars/crablady.jpg" alt="" class="avatar" width="48" height="48">
+                    <span class="username"><a href="/users/crablady">crablady</a></span>
+                    <span class="user-title">Moderator</span>
+                    <span class="post-count">1,247 posts</span>
+                </div>
+                <div class="post-content">
+                    <div class="post-header">
+                        <time datetime="2025-06-15T11:15:00Z">June 15, 2025, 11:15 AM</time>
+                    </div>
+                    <div class="post-body">
+                        <p>We switched our main API from Node.js to Axum about 18 months ago. Here is our honest assessment:</p>
+                        <p><strong>Pros:</strong></p>
+                        <ul>
+                            <li>Performance is extraordinary. We went from 12 servers to 3 for the same traffic.</li>
+                            <li>Memory usage dropped from 2GB to 180MB per instance.</li>
+                            <li>The type system catches so many bugs at compile time that our production error rate dropped 80%.</li>
+                            <li>sqlx is excellent and fully production-ready for PostgreSQL.</li>
+                        </ul>
+                        <p><strong>Cons:</strong></p>
+                        <ul>
+                            <li>Initial development velocity dropped about 40% for the first 3 months.</li>
+                            <li>Compile times are real — we use cargo-watch and sccache to mitigate.</li>
+                            <li>Some ecosystem gaps remain. Email libraries and OAuth integrations are less polished than Node equivalents.</li>
+                        </ul>
+                        <blockquote>
+                            <p>Has anyone made this transition? What were the real-world trade-offs?</p>
+                        </blockquote>
+                        <p>Overall, I would say it is absolutely worth it for performance-critical services. For typical CRUD APIs, Python or Go are still more pragmatic choices. Choose based on your actual bottleneck, not hype.</p>
+                    </div>
+                    <div class="post-actions">
+                        <button class="btn-vote upvote" data-post="2">▲ 92</button>
+                        <button class="btn-vote downvote" data-post="2">▼</button>
+                        <button class="btn-reply" data-post="2">Reply</button>
+                        <button class="btn-bookmark" data-post="2">Bookmark</button>
+                        <button class="btn-share" data-post="2">Share</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reply 2 -->
+            <div class="post reply" id="post-3">
+                <div class="post-sidebar">
+                    <img src="/avatars/dbexpert.jpg" alt="" class="avatar" width="48" height="48">
+                    <span class="username"><a href="/users/dbexpert_mike">dbexpert_mike</a></span>
+                    <span class="user-title">Senior Member</span>
+                    <span class="post-count">589 posts</span>
+                </div>
+                <div class="post-content">
+                    <div class="post-header">
+                        <time datetime="2025-06-15T14:02:00Z">June 15, 2025, 2:02 PM</time>
+                    </div>
+                    <div class="post-body">
+                        <p>Re: ecosystem maturity — here is what I have found reliable in production:</p>
+                        <ul>
+                            <li><strong>sqlx</strong> — compile-time checked SQL queries, async, excellent for Postgres</li>
+                            <li><strong>sea-orm</strong> — full ORM if you prefer that pattern, very active development</li>
+                            <li><strong>tower</strong> — middleware framework, on par with Express middleware</li>
+                            <li><strong>serde</strong> — serialization is world-class, best-in-class JSON handling</li>
+                            <li><strong>tracing</strong> — structured logging/observability, better than most Node options</li>
+                        </ul>
+                        <p>The weak spots are mostly in higher-level application frameworks. There is no Django equivalent where everything is batteries-included. You will assemble your stack from individual crates.</p>
+                    </div>
+                    <div class="post-actions">
+                        <button class="btn-vote upvote" data-post="3">▲ 38</button>
+                        <button class="btn-vote downvote" data-post="3">▼</button>
+                        <button class="btn-reply" data-post="3">Reply</button>
+                        <button class="btn-bookmark" data-post="3">Bookmark</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <nav class="pagination" aria-label="Thread pagination">
+                <span class="page current">1</span>
+                <a href="?page=2" class="page">2</a>
+                <a href="?page=3" class="page">3</a>
+                <a href="?page=4" class="page">4</a>
+                <a href="?page=2" class="next-page">Next →</a>
+            </nav>
+        </article>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-links">
+            <a href="/about">About</a>
+            <a href="/guidelines">Community Guidelines</a>
+            <a href="/privacy">Privacy Policy</a>
+            <a href="/terms">Terms of Service</a>
+        </div>
+        <p class="copyright">&copy; 2025 DevForum. All rights reserved. Powered by ForumEngine v4.2</p>
+    </footer>
+</body>
+</html>

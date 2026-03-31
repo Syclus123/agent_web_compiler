@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classic Margherita Pizza — HomeChef Recipes</title>
+    <script async src="https://analytics.homechef.example.com/track.js"></script>
+</head>
+<body>
+    <header class="site-header">
+        <nav class="main-nav">
+            <a href="/" class="logo">HomeChef Recipes</a>
+            <ul class="nav-links">
+                <li><a href="/recipes">All Recipes</a></li>
+                <li><a href="/categories/dinner">Dinner</a></li>
+                <li><a href="/categories/dessert">Dessert</a></li>
+                <li><a href="/meal-plans">Meal Plans</a></li>
+            </ul>
+            <form class="search-form" action="/search" method="get">
+                <input type="text" name="q" placeholder="Search recipes..." aria-label="Search">
+                <button type="submit">Search</button>
+            </form>
+        </nav>
+    </header>
+
+    <!-- Cookie notice -->
+    <div class="cookie-banner">
+        <p>This site uses cookies to save your preferences. <a href="/privacy">Learn more</a>.</p>
+        <button onclick="acceptCookies()">Accept</button>
+    </div>
+
+    <main class="recipe-page">
+        <article class="recipe">
+            <header class="recipe-header">
+                <nav class="breadcrumbs" aria-label="Breadcrumb">
+                    <a href="/">Home</a> &gt; <a href="/categories/dinner">Dinner</a> &gt; <a href="/categories/pizza">Pizza</a> &gt; Margherita
+                </nav>
+                <h1>Classic Margherita Pizza</h1>
+                <div class="recipe-meta">
+                    <span class="author">By <a href="/chefs/marco-b">Chef Marco Bellini</a></span>
+                    <time datetime="2025-04-10">April 10, 2025</time>
+                </div>
+                <div class="recipe-rating">
+                    <span class="stars">★★★★★</span>
+                    <span class="rating-value">4.8 out of 5</span>
+                    <span class="review-count">(312 reviews)</span>
+                </div>
+                <div class="recipe-actions">
+                    <button class="btn-print" onclick="window.print()">Print Recipe</button>
+                    <button class="btn-save" onclick="saveRecipe(42)">Save to Collection</button>
+                    <div class="share-buttons">
+                        <a href="https://pinterest.com/pin?url=...">Pin It</a>
+                        <a href="https://facebook.com/share?url=...">Share</a>
+                    </div>
+                </div>
+            </header>
+
+            <p class="recipe-intro">This authentic Neapolitan-style Margherita pizza uses a 72-hour cold-fermented dough for maximum flavor development. The combination of San Marzano tomatoes, fresh mozzarella di bufala, and fragrant basil creates the perfect balance of acidity, creaminess, and herbal freshness that has made this pizza a UNESCO-recognized cultural treasure.</p>
+
+            <div class="recipe-summary">
+                <div class="summary-item"><strong>Prep Time:</strong> 20 minutes (plus 72 hours dough fermentation)</div>
+                <div class="summary-item"><strong>Cook Time:</strong> 8-12 minutes</div>
+                <div class="summary-item"><strong>Total Time:</strong> 30 minutes active</div>
+                <div class="summary-item"><strong>Yield:</strong>
+                    <label for="servings">Servings:</label>
+                    <select id="servings" name="servings" onchange="scaleRecipe(this.value)">
+                        <option value="2">2 pizzas</option>
+                        <option value="4" selected>4 pizzas</option>
+                        <option value="6">6 pizzas</option>
+                        <option value="8">8 pizzas</option>
+                    </select>
+                </div>
+                <div class="summary-item"><strong>Difficulty:</strong> Intermediate</div>
+            </div>
+
+            <section class="ingredients">
+                <h2>Ingredients</h2>
+                <h3>For the Dough</h3>
+                <ul class="ingredient-list">
+                    <li>500g Tipo 00 flour (Caputo brand recommended)</li>
+                    <li>325ml cold water (65% hydration)</li>
+                    <li>10g fine sea salt</li>
+                    <li>3g active dry yeast (or 1g fresh yeast)</li>
+                    <li>5g extra virgin olive oil</li>
+                </ul>
+                <h3>For the Sauce</h3>
+                <ul class="ingredient-list">
+                    <li>400g San Marzano tomatoes (one 14oz can, DOP certified)</li>
+                    <li>2 cloves garlic, minced</li>
+                    <li>5g salt</li>
+                    <li>Fresh basil leaves (about 10)</li>
+                    <li>15ml extra virgin olive oil</li>
+                </ul>
+                <h3>For the Topping</h3>
+                <ul class="ingredient-list">
+                    <li>250g fresh mozzarella di bufala</li>
+                    <li>Fresh basil leaves</li>
+                    <li>Extra virgin olive oil for drizzling</li>
+                    <li>Flaky sea salt to finish</li>
+                </ul>
+            </section>
+
+            <section class="instructions">
+                <h2>Instructions</h2>
+                <ol class="step-list">
+                    <li><strong>Make the dough (Day 1):</strong> Dissolve yeast in cold water and let stand 5 minutes. In a large bowl, combine flour and salt. Add the yeast water gradually, mixing until a shaggy dough forms. Knead on a lightly floured surface for 10 minutes until smooth and elastic. Add olive oil and knead 2 more minutes. Cover and refrigerate for 72 hours.</li>
+                    <li><strong>Prepare the sauce:</strong> Crush San Marzano tomatoes by hand into a bowl. Add minced garlic, salt, torn basil, and olive oil. Stir gently. Do not cook the sauce — it will cook on the pizza.</li>
+                    <li><strong>Shape the dough (Day 4):</strong> Remove dough from refrigerator 2 hours before baking. Divide into 4 equal portions (about 210g each). Shape into tight balls and let rest at room temperature, covered with a damp towel.</li>
+                    <li><strong>Preheat oven:</strong> Place a pizza stone or steel on the upper-middle rack. Preheat oven to maximum temperature (500°F / 260°C, or higher if possible) for at least 45 minutes.</li>
+                    <li><strong>Shape the pizza:</strong> On a lightly floured surface, press dough ball into a disc. Using your fingertips, stretch from the center outward, leaving a 1-inch border for the cornicione (crust). Stretch to approximately 12 inches in diameter.</li>
+                    <li><strong>Top and bake:</strong> Transfer dough to a floured pizza peel. Spread 3 tablespoons of sauce, leaving the border clear. Tear mozzarella into pieces and distribute evenly. Slide onto the preheated stone and bake 8-12 minutes until the crust is puffed and charred in spots.</li>
+                    <li><strong>Finish:</strong> Remove from oven, top with fresh basil leaves, drizzle with olive oil, and sprinkle with flaky salt. Slice and serve immediately.</li>
+                </ol>
+            </section>
+
+            <section class="nutrition">
+                <h2>Nutrition Information</h2>
+                <p>Per serving (1 pizza, based on 4 servings)</p>
+                <table class="nutrition-table">
+                    <tbody>
+                        <tr><th>Calories</th><td>685 kcal</td></tr>
+                        <tr><th>Total Fat</th><td>22g (28% DV)</td></tr>
+                        <tr><th>Saturated Fat</th><td>9g (45% DV)</td></tr>
+                        <tr><th>Cholesterol</th><td>45mg (15% DV)</td></tr>
+                        <tr><th>Sodium</th><td>1,240mg (54% DV)</td></tr>
+                        <tr><th>Total Carbohydrates</th><td>89g (32% DV)</td></tr>
+                        <tr><th>Dietary Fiber</th><td>4g (14% DV)</td></tr>
+                        <tr><th>Protein</th><td>28g</td></tr>
+                        <tr><th>Calcium</th><td>380mg (29% DV)</td></tr>
+                        <tr><th>Iron</th><td>5mg (28% DV)</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="chef-notes">
+                <h2>Chef's Notes</h2>
+                <ul>
+                    <li>If you cannot find Tipo 00 flour, bread flour is an acceptable substitute, though the texture will be slightly different.</li>
+                    <li>The 72-hour cold fermentation develops complex flavors. In a pinch, a minimum 24-hour ferment still yields good results.</li>
+                    <li>A pizza steel transfers heat faster than a stone and produces better char.</li>
+                    <li>For the most authentic results, use a wood-fired oven at 800-900°F, which cooks the pizza in 60-90 seconds.</li>
+                </ul>
+            </section>
+        </article>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-links">
+            <a href="/about">About</a>
+            <a href="/contact">Contact</a>
+            <a href="/privacy">Privacy Policy</a>
+            <a href="/terms">Terms of Service</a>
+        </div>
+        <p class="copyright">&copy; 2025 HomeChef Recipes. All rights reserved.</p>
+    </footer>
+</body>
+</html>

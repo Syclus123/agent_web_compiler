@@ -1,0 +1,43 @@
+{
+  "name": "government_form",
+  "description": "Government service page with dense text, required forms, multiple download links, legal disclaimers, and contact information",
+  "source_type": "html",
+  "html_file": "government_form.html",
+  "expected": {
+    "headings": [
+      "Small Business Innovation Research (SBIR) Grant Program",
+      "Program Overview",
+      "Eligibility Requirements",
+      "Required Application Materials",
+      "Research Topics for FY2025",
+      "Evaluation Criteria",
+      "Important Dates",
+      "How to Apply",
+      "Legal Notices",
+      "Contact Information"
+    ],
+    "min_blocks": 15,
+    "min_tables": 2,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "$200,000",
+      "September 15, 2025",
+      "Grants.gov",
+      "13 CFR 121.702",
+      "500 employees",
+      "sbir@commerce.gov",
+      "(202) 555-0199",
+      "15 U.S.C.",
+      "NOAA",
+      "NIST"
+    ],
+    "expected_actions": [
+      {"type": "navigate", "label_contains": "Apply on Grants.gov"},
+      {"type": "navigate", "label_contains": "Download Full Solicitation"},
+      {"type": "navigate", "label_contains": "Frequently Asked Questions"},
+      {"type": "submit", "label_contains": "Search"}
+    ],
+    "noise_phrases": ["all rights reserved", "privacy policy"],
+    "main_action_label": "Apply"
+  }
+}

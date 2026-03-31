@@ -1,0 +1,31 @@
+{
+  "name": "login_page",
+  "description": "Login page with username/password form, social login buttons, forgot password link, and sidebar features",
+  "source_type": "html",
+  "html_file": "login_page.html",
+  "expected": {
+    "headings": [
+      "Sign In to Your Account",
+      "Why SecureApp?"
+    ],
+    "min_blocks": 5,
+    "min_tables": 0,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "Email or Username",
+      "Remember me for 30 days",
+      "Forgot password",
+      "Continue with Google",
+      "End-to-end encryption",
+      "SOC 2 Type II"
+    ],
+    "expected_actions": [
+      {"type": "submit", "label_contains": "Sign In"},
+      {"type": "click", "label_contains": "Google"},
+      {"type": "click", "label_contains": "GitHub"},
+      {"type": "navigate", "label_contains": "Forgot password"}
+    ],
+    "noise_phrases": ["cookie", "analytics", "privacy policy"],
+    "main_action_label": "Sign In"
+  }
+}

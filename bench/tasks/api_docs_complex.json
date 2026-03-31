@@ -1,0 +1,37 @@
+{
+  "name": "api_docs_complex",
+  "description": "Complex API docs with multiple endpoint sections, request/response code blocks, parameter tables, and authentication section",
+  "source_type": "html",
+  "html_file": "api_docs_complex.html",
+  "expected": {
+    "headings": [
+      "Vaultline Platform API v3",
+      "Authentication",
+      "Rate Limits",
+      "Error Handling",
+      "Create Vault",
+      "List Vaults",
+      "Store Secret",
+      "Get Audit Log"
+    ],
+    "min_blocks": 18,
+    "min_tables": 5,
+    "min_code_blocks": 8,
+    "key_phrases": [
+      "Bearer vlt_sk_live_",
+      "aes-256-gcm",
+      "rate_limited",
+      "pagination",
+      "DATABASE_URL",
+      "64KB",
+      "chacha20-poly1305"
+    ],
+    "expected_actions": [
+      {"type": "navigate", "label_contains": "API Reference"},
+      {"type": "navigate", "label_contains": "SDKs"},
+      {"type": "submit", "label_contains": "Search"}
+    ],
+    "noise_phrases": ["privacy policy", "terms of service", "all rights reserved"],
+    "main_action_label": "Search"
+  }
+}

@@ -353,6 +353,7 @@ doc = compile_url("https://example.com", config=config)
 
 We welcome contributions. It is required to adhere to the architectural principles and coding standards.
 
+
 ```bash
 # Setup
 git clone https://github.com/anthropics/agent-web-compiler.git

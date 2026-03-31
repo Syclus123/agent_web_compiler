@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — SecureApp</title>
+    <link rel="stylesheet" href="/css/auth.css">
+    <script async src="https://analytics.secureapp.example.com/track.js"></script>
+</head>
+<body>
+    <header class="site-header">
+        <nav class="main-nav">
+            <a href="/" class="logo">SecureApp</a>
+            <ul class="nav-links">
+                <li><a href="/features">Features</a></li>
+                <li><a href="/pricing">Pricing</a></li>
+                <li><a href="/docs">Documentation</a></li>
+                <li><a href="/support">Support</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Cookie consent banner -->
+    <div class="cookie-banner" id="cookie-consent">
+        <p>We use cookies to ensure the best experience. See our
+        <a href="/privacy">privacy policy</a> for details.</p>
+        <button onclick="acceptCookies()">Accept All</button>
+        <button onclick="rejectCookies()">Reject Non-Essential</button>
+    </div>
+
+    <main class="auth-page">
+        <div class="auth-container">
+            <h1>Sign In to Your Account</h1>
+            <p class="auth-subtitle">Welcome back! Please enter your credentials to continue.</p>
+
+            <form class="login-form" action="/api/auth/login" method="post">
+                <div class="form-group">
+                    <label for="username">Email or Username</label>
+                    <input type="text" id="username" name="username" placeholder="you@example.com" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+                    <a href="/auth/forgot-password" class="forgot-link">Forgot password?</a>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="remember" name="remember" value="1">
+                    <label for="remember">Remember me for 30 days</label>
+                </div>
+                <button type="submit" class="btn-primary login-btn">Sign In</button>
+            </form>
+
+            <div class="auth-divider">
+                <span>or continue with</span>
+            </div>
+
+            <div class="social-login">
+                <button class="btn-social btn-google" onclick="loginWithGoogle()">
+                    <img src="/icons/google.svg" alt="" width="20" height="20">
+                    Continue with Google
+                </button>
+                <button class="btn-social btn-github" onclick="loginWithGithub()">
+                    <img src="/icons/github.svg" alt="" width="20" height="20">
+                    Continue with GitHub
+                </button>
+                <button class="btn-social btn-microsoft" onclick="loginWithMicrosoft()">
+                    <img src="/icons/microsoft.svg" alt="" width="20" height="20">
+                    Continue with Microsoft
+                </button>
+            </div>
+
+            <p class="auth-footer-text">
+                Don't have an account? <a href="/auth/register">Create one now</a>
+            </p>
+            <p class="auth-footer-text">
+                Having trouble signing in? <a href="/support/login-help">Get help</a>
+            </p>
+        </div>
+
+        <div class="auth-sidebar">
+            <h2>Why SecureApp?</h2>
+            <ul class="feature-list">
+                <li>End-to-end encryption for all your data</li>
+                <li>Two-factor authentication support</li>
+                <li>SOC 2 Type II certified</li>
+                <li>Trusted by over 50,000 teams worldwide</li>
+            </ul>
+            <p class="testimonial">"SecureApp transformed how our team handles sensitive data.
+            Setup took 5 minutes." — Sarah K., CTO at DataFlow Inc.</p>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-links">
+            <a href="/privacy">Privacy Policy</a>
+            <a href="/terms">Terms of Service</a>
+            <a href="/security">Security</a>
+            <a href="/status">Status</a>
+        </div>
+        <p class="copyright">&copy; 2025 SecureApp, Inc. All rights reserved.</p>
+    </footer>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        // Analytics tracking
+        window.dataLayer = window.dataLayer || [];
+    </script>
+</body>
+</html>

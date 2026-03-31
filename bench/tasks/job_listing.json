@@ -1,0 +1,37 @@
+{
+  "name": "job_listing",
+  "description": "Job posting with requirements list, salary, location, apply button, company info, and similar jobs",
+  "source_type": "html",
+  "html_file": "job_listing.html",
+  "expected": {
+    "headings": [
+      "Senior Full-Stack Engineer",
+      "About the Role",
+      "Requirements",
+      "What You'll Do",
+      "Benefits and Perks",
+      "About TechCorp",
+      "Similar Positions"
+    ],
+    "min_blocks": 10,
+    "min_tables": 0,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "$180,000",
+      "$240,000",
+      "San Francisco",
+      "TypeScript and Python",
+      "2 million developers",
+      "99.99% uptime",
+      "Series D",
+      "recruiting@techcorp.example.com"
+    ],
+    "expected_actions": [
+      {"type": "navigate", "label_contains": "Apply"},
+      {"type": "click", "label_contains": "Save Job"},
+      {"type": "click", "label_contains": "Share"}
+    ],
+    "noise_phrases": ["privacy policy", "all rights reserved"],
+    "main_action_label": "Apply"
+  }
+}

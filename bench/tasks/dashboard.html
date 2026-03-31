@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operations Dashboard — Meridian Analytics</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <script src="https://cdn.example.com/charts.js"></script>
+</head>
+<body>
+    <header class="dashboard-header">
+        <nav class="top-nav">
+            <a href="/" class="logo">Meridian Analytics</a>
+            <ul class="nav-links">
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="/reports">Reports</a></li>
+                <li><a href="/alerts">Alerts</a></li>
+                <li><a href="/settings">Settings</a></li>
+            </ul>
+            <div class="user-menu">
+                <span class="user-name">Sarah Thompson</span>
+                <a href="/logout">Logout</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="dashboard-content">
+        <div class="dashboard-toolbar">
+            <h1>Operations Dashboard</h1>
+            <div class="toolbar-controls">
+                <div class="date-range">
+                    <label for="date-from">From:</label>
+                    <input type="date" id="date-from" name="date_from" value="2025-06-01">
+                    <label for="date-to">To:</label>
+                    <input type="date" id="date-to" name="date_to" value="2025-06-30">
+                    <button class="btn-filter" onclick="applyDateFilter()">Apply</button>
+                </div>
+                <div class="region-filter">
+                    <label for="region">Region:</label>
+                    <select id="region" name="region">
+                        <option value="all">All Regions</option>
+                        <option value="na" selected>North America</option>
+                        <option value="eu">Europe</option>
+                        <option value="apac">Asia Pacific</option>
+                    </select>
+                </div>
+                <button class="btn-export" onclick="exportDashboard()">Export to CSV</button>
+                <button class="btn-refresh" onclick="refreshData()">Refresh Data</button>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <section class="kpi-cards">
+            <h2>Key Metrics — June 2025</h2>
+            <div class="card-grid">
+                <div class="kpi-card">
+                    <h3>Total Revenue</h3>
+                    <span class="kpi-value">$4,287,350</span>
+                    <span class="kpi-change positive">+12.3% vs last month</span>
+                </div>
+                <div class="kpi-card">
+                    <h3>Active Users</h3>
+                    <span class="kpi-value">284,729</span>
+                    <span class="kpi-change positive">+8.1% vs last month</span>
+                </div>
+                <div class="kpi-card">
+                    <h3>Conversion Rate</h3>
+                    <span class="kpi-value">3.42%</span>
+                    <span class="kpi-change negative">-0.15% vs last month</span>
+                </div>
+                <div class="kpi-card">
+                    <h3>Avg Response Time</h3>
+                    <span class="kpi-value">142ms</span>
+                    <span class="kpi-change positive">-18ms vs last month</span>
+                </div>
+                <div class="kpi-card">
+                    <h3>Support Tickets</h3>
+                    <span class="kpi-value">1,247</span>
+                    <span class="kpi-change negative">+23% vs last month</span>
+                </div>
+                <div class="kpi-card">
+                    <h3>Uptime</h3>
+                    <span class="kpi-value">99.97%</span>
+                    <span class="kpi-change positive">+0.02% vs last month</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts (placeholder divs) -->
+        <section class="chart-section">
+            <h2>Revenue Trend</h2>
+            <div class="chart-container" id="revenue-chart" data-chart-type="line" data-endpoint="/api/charts/revenue">
+                <p class="chart-placeholder">[Line chart: Monthly revenue Jan-Jun 2025, showing upward trend from $3.2M to $4.3M]</p>
+            </div>
+        </section>
+
+        <section class="chart-section">
+            <h2>User Acquisition Channels</h2>
+            <div class="chart-container" id="channels-chart" data-chart-type="pie" data-endpoint="/api/charts/channels">
+                <p class="chart-placeholder">[Pie chart: Organic 42%, Paid Search 28%, Referral 18%, Social 8%, Direct 4%]</p>
+            </div>
+        </section>
+
+        <!-- Data Table -->
+        <section class="data-section">
+            <h2>Top Products — June 2025</h2>
+            <table class="data-table sortable">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Units Sold</th>
+                        <th>Revenue</th>
+                        <th>Conversion Rate</th>
+                        <th>Avg Rating</th>
+                        <th>Return Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Analytics Pro</td><td>3,847</td><td>$1,154,100</td><td>4.2%</td><td>4.6</td><td>2.1%</td></tr>
+                    <tr><td>Dashboard Suite</td><td>2,291</td><td>$916,400</td><td>3.8%</td><td>4.4</td><td>3.0%</td></tr>
+                    <tr><td>Data Connector</td><td>5,124</td><td>$768,600</td><td>5.1%</td><td>4.7</td><td>1.5%</td></tr>
+                    <tr><td>Report Builder</td><td>1,856</td><td>$650,600</td><td>2.9%</td><td>4.2</td><td>4.2%</td></tr>
+                    <tr><td>API Gateway</td><td>982</td><td>$491,000</td><td>2.1%</td><td>4.5</td><td>1.8%</td></tr>
+                    <tr><td>Visualizer</td><td>1,523</td><td>$304,600</td><td>3.5%</td><td>4.3</td><td>2.7%</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Recent Activity -->
+        <section class="activity-section">
+            <h2>Recent Alerts</h2>
+            <table class="activity-table">
+                <thead>
+                    <tr><th>Time</th><th>Severity</th><th>Message</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>2025-06-30 14:22</td><td class="severity-warning">Warning</td><td>High CPU usage on web-server-03 (92%)</td><td>Investigating</td></tr>
+                    <tr><td>2025-06-30 11:45</td><td class="severity-critical">Critical</td><td>Payment gateway timeout — 12 failed transactions</td><td>Resolved</td></tr>
+                    <tr><td>2025-06-30 09:30</td><td class="severity-info">Info</td><td>Database backup completed successfully (42GB, 18 min)</td><td>Complete</td></tr>
+                    <tr><td>2025-06-29 22:15</td><td class="severity-warning">Warning</td><td>SSL certificate expires in 14 days for api.meridian.example.com</td><td>Pending</td></tr>
+                    <tr><td>2025-06-29 16:00</td><td class="severity-info">Info</td><td>Deployment v3.14.2 completed to production</td><td>Complete</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <footer class="dashboard-footer">
+        <p>Last updated: June 30, 2025, 2:30 PM ET | Data source: Meridian Analytics API v3.14</p>
+        <p class="copyright">&copy; 2025 Meridian Analytics. All rights reserved. <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+    </footer>
+</body>
+</html>

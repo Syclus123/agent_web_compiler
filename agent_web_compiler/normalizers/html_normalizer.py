@@ -8,6 +8,7 @@ import lxml.html
 from lxml.html import HtmlElement, tostring
 
 from agent_web_compiler.core.config import CompileConfig
+from agent_web_compiler.core.document import SiteProfile
 
 
 class HTMLNormalizer:
@@ -49,9 +50,16 @@ class HTMLNormalizer:
         ".//*[contains(@class, 'entry-content')]",
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, site_profile: SiteProfile | None = None) -> None:
+        self._site_profile = site_profile
+
+        # Merge noise patterns from profile
+        patterns = list(self.NOISE_PATTERNS)
+        if site_profile and site_profile.noise_patterns:
+            patterns.extend(site_profile.noise_patterns)
+
         self._noise_re = re.compile(
-            "|".join(self.NOISE_PATTERNS), re.IGNORECASE,
+            "|".join(patterns), re.IGNORECASE,
         )
 
     # ------------------------------------------------------------------
@@ -79,8 +87,16 @@ class HTMLNormalizer:
         # Pass 1: strip always-remove tags
         self._remove_tags(tree)
 
+        # Pass 1b: remove elements from site profile selectors
+        if self._site_profile:
+            self._remove_profile_elements(tree)
+
         # Pass 2: locate main content area (used for score boosting)
         main_content = self._find_main_content(tree)
+
+        # If site profile has main content selectors, try those first
+        if self._site_profile and self._site_profile.main_content_selectors and main_content is None:
+            main_content = self._find_main_content_from_profile(tree)
 
         # Pass 3: remove boilerplate structural tags with low scores
         self._remove_boilerplate(tree, main_content)
@@ -256,3 +272,62 @@ class HTMLNormalizer:
                 return True
             parent = parent.getparent()
         return False
+
+    # ------------------------------------------------------------------
+    # Site profile-based removal
+    # ------------------------------------------------------------------
+
+    def _remove_profile_elements(self, tree: HtmlElement) -> None:
+        """Remove elements matching site profile header/footer/sidebar selectors."""
+        if not self._site_profile:
+            return
+
+        all_selectors: list[str] = (
+            self._site_profile.header_selectors
+            + self._site_profile.footer_selectors
+            + self._site_profile.sidebar_selectors
+        )
+
+        for selector in all_selectors:
+            # Parse CSS-like selector: "tag.class" -> find by tag and class
+            self._remove_by_selector(tree, selector)
+
+    def _find_main_content_from_profile(self, tree: HtmlElement) -> HtmlElement | None:
+        """Try to find main content using site profile selectors."""
+        if not self._site_profile:
+            return None
+
+        for selector in self._site_profile.main_content_selectors:
+            result = self._find_by_selector(tree, selector)
+            if result is not None:
+                return result
+        return None
+
+    @staticmethod
+    def _remove_by_selector(tree: HtmlElement, selector: str) -> None:
+        """Remove elements matching a simple CSS selector (tag or tag.class)."""
+        if "." in selector:
+            tag, cls = selector.split(".", 1)
+            xpath = f".//{tag}[contains(@class, '{cls}')]"
+            for el in list(tree.xpath(xpath)):
+                parent = el.getparent()
+                if parent is not None:
+                    parent.remove(el)
+        else:
+            for el in list(tree.iter(selector)):
+                parent = el.getparent()
+                if parent is not None:
+                    parent.remove(el)
+
+    @staticmethod
+    def _find_by_selector(tree: HtmlElement, selector: str) -> HtmlElement | None:
+        """Find the first element matching a simple CSS selector."""
+        if "." in selector:
+            tag, cls = selector.split(".", 1)
+            xpath = f".//{tag}[contains(@class, '{cls}')]"
+            results = tree.xpath(xpath)
+            return results[0] if results else None
+        else:
+            for el in tree.iter(selector):
+                return el
+        return None

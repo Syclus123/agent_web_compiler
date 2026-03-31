@@ -13,7 +13,7 @@ from agent_web_compiler.core.action import Action
 from agent_web_compiler.core.block import Block
 
 # Schema version — bump on breaking changes
-SCHEMA_VERSION = "0.1.0"
+SCHEMA_VERSION = "0.3.0"
 
 
 class SourceType(str, Enum):
@@ -107,6 +107,10 @@ class AgentDocument(BaseModel):
     # Actions
     actions: list[Action] = Field(
         default_factory=list, description="Interactive affordances"
+    )
+    navigation_graph: dict | None = Field(
+        None,
+        description="Navigation graph modeling reachable states from actions (serialized)",
     )
 
     # Assets

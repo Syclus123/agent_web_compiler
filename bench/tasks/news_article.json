@@ -1,0 +1,34 @@
+{
+  "name": "news_article",
+  "description": "News site with article, author, date, related stories sidebar, comments section, and share buttons",
+  "source_type": "html",
+  "html_file": "news_article.html",
+  "expected": {
+    "headings": [
+      "Record Heatwave Prompts Emergency Water Restrictions Across Southwest",
+      "Scope of the Crisis",
+      "Water Supply Under Pressure",
+      "Health and Human Impact",
+      "Long-Term Outlook"
+    ],
+    "min_blocks": 12,
+    "min_tables": 0,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "115°F",
+      "12 million residents",
+      "Lake Mead",
+      "22% capacity",
+      "Maricopa County",
+      "Maria Chen",
+      "July 18, 2025"
+    ],
+    "expected_actions": [
+      {"type": "navigate", "label_contains": "Subscribe"},
+      {"type": "navigate", "label_contains": "Twitter"},
+      {"type": "submit", "label_contains": "Subscribe"}
+    ],
+    "noise_phrases": ["cookie", "advertisement", "analytics", "privacy policy"],
+    "main_action_label": "Subscribe"
+  }
+}

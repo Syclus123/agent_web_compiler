@@ -1,0 +1,31 @@
+{
+  "name": "forum_thread",
+  "description": "Forum thread with original post, replies, vote buttons, quote blocks, user info, and pagination",
+  "source_type": "html",
+  "html_file": "forum_thread.html",
+  "expected": {
+    "headings": [
+      "Is Rust the right choice for web backends in 2025?"
+    ],
+    "min_blocks": 8,
+    "min_tables": 0,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "50K requests per second",
+      "borrow checker",
+      "Axum",
+      "12 servers to 3",
+      "sqlx",
+      "compile time",
+      "production error rate dropped 80%"
+    ],
+    "expected_actions": [
+      {"type": "click", "label_contains": "Reply"},
+      {"type": "click", "label_contains": "Bookmark"},
+      {"type": "navigate", "label_contains": "New Topic"},
+      {"type": "submit", "label_contains": "Search"}
+    ],
+    "noise_phrases": ["powered by", "privacy policy", "terms of service"],
+    "main_action_label": "Reply"
+  }
+}

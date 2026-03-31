@@ -32,7 +32,7 @@ def cli() -> None:
 
 
 @cli.command()
-@click.argument("source")
+@click.argument("sources", nargs=-1, required=True)
 @click.option("-o", "--output", type=click.Path(), default=None, help="Output directory or file")
 @click.option(
     "--mode",
@@ -52,7 +52,7 @@ def cli() -> None:
 @click.option("--format", "output_format", type=click.Choice(["json", "markdown", "both"]), default="both")
 @click.option("--timeout", type=float, default=30.0, help="HTTP timeout in seconds")
 def compile(
-    source: str,
+    sources: tuple[str, ...],
     output: str | None,
     mode: str,
     render: str,
@@ -62,7 +62,10 @@ def compile(
     output_format: str,
     timeout: float,
 ) -> None:
-    """Compile a URL, HTML file, or PDF into an AgentDocument."""
+    """Compile one or more URLs, HTML files, or PDFs into AgentDocuments.
+
+    When multiple sources are given, batch compilation is used automatically.
+    """
     from agent_web_compiler.core.config import CompileConfig, CompileMode, RenderMode
 
     config = CompileConfig(
@@ -74,6 +77,13 @@ def compile(
         timeout_seconds=timeout,
     )
 
+    # Batch mode: multiple sources
+    if len(sources) > 1:
+        _compile_batch_cli(sources, output, config, debug, output_format)
+        return
+
+    # Single source mode
+    source = sources[0]
     console.print(f"\n[bold blue]⚡ Compiling:[/bold blue] {source}")
     start = time.perf_counter()
 
@@ -103,27 +113,7 @@ def compile(
 
     # Write output
     if output:
-        output_path = Path(output)
-        output_path.mkdir(parents=True, exist_ok=True)
-
-        if output_format in ("json", "both"):
-            json_path = output_path / "agent_document.json"
-            from agent_web_compiler.exporters.json_exporter import to_json
-
-            json_path.write_text(to_json(doc))
-            console.print(f"  [green]✓[/green] JSON: {json_path}")
-
-        if output_format in ("markdown", "both"):
-            md_path = output_path / "document.md"
-            md_path.write_text(doc.canonical_markdown)
-            console.print(f"  [green]✓[/green] Markdown: {md_path}")
-
-        if debug:
-            debug_path = output_path / "debug_bundle.json"
-            from agent_web_compiler.exporters.debug_exporter import to_debug_bundle
-
-            debug_path.write_text(json.dumps(to_debug_bundle(doc), indent=2, default=str))
-            console.print(f"  [green]✓[/green] Debug: {debug_path}")
+        _write_output(doc, output, output_format, debug)
     else:
         # Print to stdout
         if output_format == "json":
@@ -287,6 +277,49 @@ def bench_run(fixtures_dir: str, output: str | None) -> None:
     console.print()
 
 
+@bench.command(name="compare")
+@click.option(
+    "--fixtures-dir",
+    default="bench/tasks",
+    help="Path to fixtures directory",
+    type=click.Path(exists=True),
+)
+@click.option("-o", "--output", default=None, help="Output report path (markdown file)")
+def bench_compare(fixtures_dir: str, output: str | None) -> None:
+    """Compare AWC against raw HTML and naive markdown on fixtures."""
+    from bench.comparison import ComparisonRunner
+
+    runner = ComparisonRunner()
+    console.print(f"\n[bold blue]Running comparison[/bold blue] from {fixtures_dir}\n")
+
+    try:
+        results = runner.compare_all(fixtures_dir)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    report = runner.generate_report(results)
+
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(report)
+        console.print(f"[green]Report written to {output_path}[/green]")
+    else:
+        console.print(report)
+
+    # Print summary
+    console.print(f"\n[bold green]Compared {len(results)} fixtures[/bold green]")
+    for r in results:
+        console.print(
+            f"  {r.fixture_name}: "
+            f"HTML {r.raw_html.token_count:,} → MD {r.naive_markdown.token_count:,} → "
+            f"AWC {r.awc.token_count:,} tokens "
+            f"([green]{r.token_savings_vs_html:.0%}[/green] savings vs HTML)"
+        )
+    console.print()
+
+
 @bench.command(name="inspect")
 @click.argument("path", type=click.Path(exists=True))
 def bench_inspect(path: str) -> None:
@@ -379,6 +412,84 @@ def _print_summary(doc: object, elapsed: float) -> None:
         console.print(f"  [yellow]Warnings: {len(doc.quality.warnings)}[/yellow]")
         for w in doc.quality.warnings[:5]:
             console.print(f"    ⚠ {w}")
+
+
+def _write_output(doc: object, output: str, output_format: str, debug: bool) -> None:
+    """Write a compiled document to an output directory."""
+    output_path = Path(output)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    if output_format in ("json", "both"):
+        json_path = output_path / "agent_document.json"
+        from agent_web_compiler.exporters.json_exporter import to_json
+
+        json_path.write_text(to_json(doc))
+        console.print(f"  [green]✓[/green] JSON: {json_path}")
+
+    if output_format in ("markdown", "both"):
+        md_path = output_path / "document.md"
+        md_path.write_text(doc.canonical_markdown)
+        console.print(f"  [green]✓[/green] Markdown: {md_path}")
+
+    if debug:
+        debug_path = output_path / "debug_bundle.json"
+        from agent_web_compiler.exporters.debug_exporter import to_debug_bundle
+
+        debug_path.write_text(json.dumps(to_debug_bundle(doc), indent=2, default=str))
+        console.print(f"  [green]✓[/green] Debug: {debug_path}")
+
+
+def _compile_batch_cli(
+    sources: tuple[str, ...],
+    output: str | None,
+    config: object,
+    debug: bool,
+    output_format: str,
+) -> None:
+    """Handle batch compilation from the CLI."""
+    from agent_web_compiler.api.batch import BatchCompiler, BatchItem
+
+    console.print(f"\n[bold blue]⚡ Batch compiling {len(sources)} sources[/bold blue]")
+    start = time.perf_counter()
+
+    items = [BatchItem(source=s) for s in sources]
+    compiler = BatchCompiler()
+
+    try:
+        result = compiler.compile_batch(items, config=config)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        if debug:
+            console.print_exception()
+        sys.exit(1)
+
+    elapsed = time.perf_counter() - start
+
+    console.print(f"\n[bold green]✓ Batch compiled in {elapsed:.2f}s[/bold green]")
+    console.print(f"  Successful: {len(result.items)}")
+    if result.errors:
+        console.print(f"  [red]Errors: {len(result.errors)}[/red]")
+        for src, err in result.errors.items():
+            console.print(f"    [red]✗[/red] {src}: {err}")
+    if result.site_profile:
+        console.print(f"  Site profile learned: {result.site_profile.site}")
+
+    # Write output
+    if output:
+        for i, doc in enumerate(result.items):
+            doc_output = str(Path(output) / f"doc_{i:03d}")
+            _write_output(doc, doc_output, output_format, debug)
+    else:
+        for doc in result.items:
+            if output_format == "json":
+                from agent_web_compiler.exporters.json_exporter import to_json
+
+                click.echo(to_json(doc))
+            else:
+                click.echo(doc.canonical_markdown)
+            click.echo("---")
+
+    console.print()
 
 
 if __name__ == "__main__":
