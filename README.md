@@ -29,9 +29,14 @@ Turn webpages, PDFs, and documents into **agent-native objects** with semantic b
 - **Semantic block extraction** — headings, paragraphs, tables, code, lists, quotes, figures, FAQs
 - **Action affordance extraction** — buttons, links, forms, inputs with predicted side-effects
 - **Provenance tracking** — DOM path, character ranges, bounding boxes back to source
-- **Importance scoring** — salience ranking from 0 (noise) to 1 (critical) per block
+- **Advanced salience scoring** — multi-feature importance ranking with configurable weights
+- **Query-aware compilation** — TF-IDF relevance filtering, token budget control
+- **Browser rendering** — Playwright integration for JavaScript-heavy pages (optional)
+- **MCP server** — Model Context Protocol server for AI assistant integration
+- **REST API** — FastAPI server with OpenAPI docs
+- **Plugin system** — typed interfaces, capability-based registry, entry-point discovery
 - **Canonical output** — structured JSON + clean markdown from a single compile call
-- **Plugin-ready architecture** — typed interfaces for every pipeline stage
+- **Benchmark suite** — reproducible evaluation with token efficiency, content fidelity, action quality metrics
 - **CLI + Python API** — one command or one function call to compile anything
 - **PDF compilation** — native support via pymupdf, with optional Docling backend
 
@@ -96,6 +101,62 @@ from agent_web_compiler.api.compile import compile_file
 
 doc = compile_file("page.html")
 print(f"Blocks: {doc.block_count}, Actions: {doc.action_count}")
+```
+
+### Query-Aware Compilation
+
+Focus on what matters — filter and boost blocks by query relevance:
+
+```python
+from agent_web_compiler import compile_html
+from agent_web_compiler.core.config import CompileConfig
+
+doc = compile_html(html, config=CompileConfig(
+    query="rate limits API",  # Boost relevant blocks
+    max_blocks=20,            # Token budget control
+    min_importance=0.3,       # Filter noise
+))
+```
+
+### MCP Server
+
+Integrate directly with Claude Desktop, Cursor, or any MCP-compatible client:
+
+```bash
+awc serve --transport stdio
+```
+
+Or add to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "web-compiler": {
+      "command": "awc",
+      "args": ["serve", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+Available MCP tools: `compile_url`, `compile_html`, `compile_file`, `get_blocks`, `get_actions`, `get_markdown`.
+
+### REST API
+
+```bash
+# Start the server
+awc serve --transport rest --port 8000
+
+# Compile a URL
+curl -X POST http://localhost:8000/v1/compile \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "mode": "balanced"}'
+```
+
+### Benchmark Suite
+
+```bash
+# Run benchmarks against built-in fixtures
+awc bench run --fixtures-dir bench/tasks/
 ```
 
 ## Output Schema
@@ -290,7 +351,7 @@ doc = compile_url("https://example.com", config=config)
 
 ## Contributing
 
-We welcome contributions. See the [CLAUDE.md](CLAUDE.md) for architecture principles and coding standards.
+We welcome contributions. It is required to adhere to the architectural principles and coding standards.
 
 ```bash
 # Setup

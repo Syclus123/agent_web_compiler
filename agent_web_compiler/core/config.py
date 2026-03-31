@@ -48,7 +48,7 @@ class CompileConfig(BaseModel):
 
     # Filtering
     query: str | None = Field(
-        None, description="Query for query-aware compilation (future)"
+        None, description="Query for query-aware compilation — filters and re-ranks blocks by relevance"
     )
     min_importance: float = Field(
         0.0,

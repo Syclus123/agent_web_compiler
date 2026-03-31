@@ -5,6 +5,9 @@ Usage:
     awc compile ./page.html -o out/
     awc compile ./paper.pdf -o out/
     awc inspect out/agent_document.json
+    awc bench run --fixtures-dir bench/tasks
+    awc bench run --fixtures-dir bench/tasks -o report.md
+    awc bench inspect bench/tasks/blog_article.json
 """
 
 from __future__ import annotations
@@ -188,6 +191,176 @@ def inspect(path: str) -> None:
                 f"{a.get('priority', 0):.2f}",
             )
         console.print(action_table)
+
+
+@cli.command()
+@click.option("--host", default="0.0.0.0", help="Bind host address")
+@click.option("--port", default=8000, type=int, help="Bind port")
+@click.option(
+    "--transport",
+    type=click.Choice(["rest", "mcp"]),
+    default="rest",
+    help="Server transport protocol",
+)
+def serve(host: str, port: int, transport: str) -> None:
+    """Start the compilation server."""
+    if transport == "rest":
+        try:
+            import uvicorn  # noqa: F401 — used below
+        except ImportError:
+            console.print(
+                "[red]Error:[/red] REST server requires the 'serve' extra. "
+                "Install with: pip install agent-web-compiler[serve]"
+            )
+            sys.exit(1)
+
+        from agent_web_compiler.serving.rest_server import create_app
+
+        app = create_app()
+        console.print(
+            f"\n[bold blue]Starting REST server[/bold blue] on {host}:{port}\n"
+        )
+        uvicorn.run(app, host=host, port=port)
+
+    elif transport == "mcp":
+        try:
+            from agent_web_compiler.serving.mcp_server import main as run_mcp
+        except ImportError:
+            console.print(
+                "[red]Error:[/red] MCP dependencies not installed. "
+                "Install the required MCP dependencies first."
+            )
+            sys.exit(1)
+
+        console.print(
+            f"\n[bold blue]Starting MCP server[/bold blue] on {host}:{port}\n"
+        )
+        run_mcp()
+
+
+@cli.group()
+def bench() -> None:
+    """Benchmark commands."""
+
+
+@bench.command(name="run")
+@click.option(
+    "--fixtures-dir",
+    default="bench/tasks",
+    help="Path to fixtures directory",
+    type=click.Path(exists=True),
+)
+@click.option("-o", "--output", default=None, help="Output report path (markdown file)")
+def bench_run(fixtures_dir: str, output: str | None) -> None:
+    """Run benchmarks against fixture files."""
+    from bench.framework import BenchmarkRunner
+
+    runner = BenchmarkRunner()
+    console.print(f"\n[bold blue]Running benchmarks[/bold blue] from {fixtures_dir}\n")
+
+    try:
+        results = runner.run_all(fixtures_dir)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    report = runner.generate_report(results)
+
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(report)
+        console.print(f"[green]Report written to {output_path}[/green]")
+    else:
+        console.print(report)
+
+    # Print summary
+    console.print(f"\n[bold green]Completed {len(results)} benchmarks[/bold green]")
+    for r in results:
+        status = "[green]PASS[/green]" if r.fidelity and r.fidelity.text_coverage >= 0.5 else "[yellow]WARN[/yellow]"
+        console.print(
+            f"  {status} {r.result.fixture_name}: "
+            f"{r.result.compression_ratio:.1f}x compression, "
+            f"{r.result.block_count} blocks, "
+            f"{r.result.compile_time_ms:.0f}ms"
+        )
+    console.print()
+
+
+@bench.command(name="inspect")
+@click.argument("path", type=click.Path(exists=True))
+def bench_inspect(path: str) -> None:
+    """Inspect a single benchmark fixture and show detailed results."""
+    from bench.framework import BenchmarkRunner
+
+    fixture_path = Path(path)
+
+    # Determine if path is a JSON spec or HTML file
+    if fixture_path.suffix == ".json":
+        spec = json.loads(fixture_path.read_text())
+        html_path = fixture_path.parent / spec["html_file"]
+    elif fixture_path.suffix == ".html":
+        json_path = fixture_path.with_suffix(".json")
+        if not json_path.exists():
+            console.print(f"[red]Error:[/red] No matching spec file: {json_path}")
+            sys.exit(1)
+        spec = json.loads(json_path.read_text())
+        html_path = fixture_path
+    else:
+        console.print(f"[red]Error:[/red] Expected .json or .html file, got: {fixture_path.suffix}")
+        sys.exit(1)
+
+    if not html_path.exists():
+        console.print(f"[red]Error:[/red] HTML file not found: {html_path}")
+        sys.exit(1)
+
+    runner = BenchmarkRunner()
+    result = runner.run_fixture(str(html_path), spec)
+
+    console.print(Panel(f"[bold]{result.result.fixture_name}[/bold]", title="Benchmark Result"))
+
+    # Efficiency table
+    eff_table = Table(title="Token Efficiency")
+    eff_table.add_column("Metric", style="bold")
+    eff_table.add_column("Value", justify="right")
+    eff_table.add_row("Raw Tokens", f"{result.result.raw_tokens:,}")
+    eff_table.add_row("Compiled Tokens", f"{result.result.compiled_tokens:,}")
+    eff_table.add_row("Compression", f"{result.result.compression_ratio:.1f}x")
+    eff_table.add_row("Compile Time", f"{result.result.compile_time_ms:.1f}ms")
+    eff_table.add_row("Blocks", str(result.result.block_count))
+    eff_table.add_row("Actions", str(result.result.action_count))
+    console.print(eff_table)
+
+    # Fidelity table
+    if result.fidelity:
+        fid_table = Table(title="Content Fidelity")
+        fid_table.add_column("Dimension", style="bold")
+        fid_table.add_column("Score", justify="right")
+        fid_table.add_row("Headings", f"{result.fidelity.heading_fidelity:.0%}")
+        fid_table.add_row("Tables", f"{result.fidelity.table_fidelity:.0%}")
+        fid_table.add_row("Code", f"{result.fidelity.code_fidelity:.0%}")
+        fid_table.add_row("Text Coverage", f"{result.fidelity.text_coverage:.0%}")
+        fid_table.add_row("Structure", f"{result.fidelity.structure_score:.0%}")
+        console.print(fid_table)
+
+    # Action table
+    if result.actions:
+        act_table = Table(title="Action Quality")
+        act_table.add_column("Metric", style="bold")
+        act_table.add_column("Value", justify="right")
+        act_table.add_row("Recall", f"{result.actions.action_recall:.0%}")
+        act_table.add_row("Precision", f"{result.actions.action_precision:.0%}")
+        main_icon = "[green]✓[/green]" if result.actions.main_action_found else "[red]✗[/red]"
+        act_table.add_row("Main Action Found", main_icon)
+        console.print(act_table)
+
+    # Warnings
+    if result.result.warnings:
+        console.print(f"\n[yellow]Warnings ({len(result.result.warnings)}):[/yellow]")
+        for w in result.result.warnings:
+            console.print(f"  - {w}")
+
+    console.print()
 
 
 def _print_summary(doc: object, elapsed: float) -> None:

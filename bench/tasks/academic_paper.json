@@ -1,0 +1,39 @@
+{
+  "name": "academic_paper",
+  "description": "Academic paper layout with abstract, numbered sections, references, and data tables",
+  "source_type": "html",
+  "html_file": "academic_paper.html",
+  "expected": {
+    "headings": [
+      "Attention Mechanisms in Neural Machine Translation",
+      "Abstract",
+      "1. Introduction",
+      "2. Background",
+      "3. Taxonomy of Attention Mechanisms",
+      "4. Experimental Setup",
+      "5. Results",
+      "6. Conclusion",
+      "References"
+    ],
+    "min_blocks": 12,
+    "min_tables": 2,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "Transformer architecture",
+      "multi-head self-attention",
+      "sparse attention variants achieve comparable BLEU scores",
+      "40% fewer FLOPs",
+      "Vaswani",
+      "BigBird",
+      "six language pairs",
+      "O(n"
+    ],
+    "expected_actions": [
+      {"type": "navigate", "label_contains": "Download PDF"},
+      {"type": "navigate", "label_contains": "Browse"},
+      {"type": "click", "label_contains": "Bookmark"}
+    ],
+    "noise_phrases": ["privacy", "terms"],
+    "main_action_label": "Download PDF"
+  }
+}

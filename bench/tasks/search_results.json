@@ -1,0 +1,31 @@
+{
+  "name": "search_results",
+  "description": "Search results page with featured snippet, organic results, people-also-ask, and pagination",
+  "source_type": "html",
+  "html_file": "search_results.html",
+  "expected": {
+    "headings": [
+      "Popular Python Web Frameworks",
+      "People also ask"
+    ],
+    "min_blocks": 8,
+    "min_tables": 0,
+    "min_code_blocks": 0,
+    "key_phrases": [
+      "Django",
+      "Flask",
+      "FastAPI",
+      "45,200,000 results",
+      "high-level Python web framework",
+      "lightweight WSGI web application framework"
+    ],
+    "expected_actions": [
+      {"type": "submit", "label_contains": "Search"},
+      {"type": "navigate", "label_contains": "Next"},
+      {"type": "navigate", "label_contains": "Images"},
+      {"type": "navigate", "label_contains": "Sign In"}
+    ],
+    "noise_phrases": ["Ad", "CloudPlatform", "privacy", "terms"],
+    "main_action_label": "Search"
+  }
+}

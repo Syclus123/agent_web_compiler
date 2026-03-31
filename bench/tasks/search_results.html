@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>python web framework — SearchEngine Results</title>
+</head>
+<body>
+    <header class="search-header">
+        <div class="header-inner">
+            <a href="/" class="logo">SearchEngine</a>
+            <form class="search-bar" action="/search" method="get">
+                <input type="text" name="q" value="python web framework" id="search-input" aria-label="Search query">
+                <button type="submit" class="search-btn">Search</button>
+            </form>
+            <div class="header-links">
+                <a href="/images">Images</a>
+                <a href="/news">News</a>
+                <a href="/maps">Maps</a>
+                <a href="/settings">Settings</a>
+                <a href="/login">Sign In</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Filters -->
+    <nav class="search-filters">
+        <a href="/search?q=python+web+framework&filter=all" class="active">All</a>
+        <a href="/search?q=python+web+framework&filter=news">News</a>
+        <a href="/search?q=python+web+framework&filter=videos">Videos</a>
+        <a href="/search?q=python+web+framework&filter=forums">Forums</a>
+        <a href="/search?q=python+web+framework&tbs=qdr:y">Past year</a>
+    </nav>
+
+    <main class="search-results">
+        <p class="result-stats">About 45,200,000 results (0.42 seconds)</p>
+
+        <!-- Sponsored result -->
+        <div class="ad-result">
+            <span class="ad-badge">Ad</span>
+            <div class="result-item">
+                <h3><a href="https://ads.example.com/click/fw1">CloudPlatform — Deploy Python Apps Instantly</a></h3>
+                <cite>https://cloudplatform.example.com/python</cite>
+                <p>Deploy your Python web framework in minutes. Free tier available. Auto-scaling, CI/CD, and managed databases included.</p>
+            </div>
+        </div>
+
+        <!-- Featured snippet -->
+        <div class="featured-snippet">
+            <h2>Popular Python Web Frameworks</h2>
+            <p>The most popular Python web frameworks in 2025 are:</p>
+            <ol>
+                <li><strong>Django</strong> — A full-featured framework with ORM, admin, and auth built in</li>
+                <li><strong>Flask</strong> — A lightweight microframework for flexible applications</li>
+                <li><strong>FastAPI</strong> — A modern async framework optimized for APIs</li>
+                <li><strong>Starlette</strong> — A lightweight ASGI framework for high performance</li>
+                <li><strong>Tornado</strong> — An async networking library and web framework</li>
+            </ol>
+            <cite>Source: <a href="https://pythonguide.example.com/frameworks">Python Framework Guide</a></cite>
+        </div>
+
+        <!-- Organic results -->
+        <div class="result-item">
+            <h3><a href="https://djangoproject.example.com">Django — The Web Framework for Perfectionists with Deadlines</a></h3>
+            <cite>https://djangoproject.example.com</cite>
+            <p>Django is a high-level Python web framework that encourages rapid development
+            and clean, pragmatic design. Built by experienced developers, it takes care of
+            much of the hassle of web development so you can focus on writing your app.</p>
+        </div>
+
+        <div class="result-item">
+            <h3><a href="https://flask.example.com">Flask — A Python Microframework</a></h3>
+            <cite>https://flask.example.com</cite>
+            <p>Flask is a lightweight WSGI web application framework. It is designed to make
+            getting started quick and easy, with the ability to scale up to complex applications.
+            Began as a simple wrapper around Werkzeug and Jinja2.</p>
+        </div>
+
+        <div class="result-item">
+            <h3><a href="https://fastapi.example.com">FastAPI — Modern, Fast Web Framework for Python</a></h3>
+            <cite>https://fastapi.example.com</cite>
+            <p>FastAPI is a modern, fast (high-performance) web framework for building APIs
+            with Python based on standard Python type hints. Very high performance, on par
+            with NodeJS and Go. Automatic interactive documentation with OpenAPI.</p>
+        </div>
+
+        <div class="result-item">
+            <h3><a href="https://realpython.example.com/frameworks-comparison">
+                Python Web Frameworks Comparison (2025 Guide) — RealPython
+            </a></h3>
+            <cite>https://realpython.example.com/tutorials/frameworks-comparison</cite>
+            <p>A comprehensive comparison of the top Python web frameworks: Django vs Flask
+            vs FastAPI. Covers performance benchmarks, learning curve, ecosystem, and when
+            to choose each framework for your next project.</p>
+        </div>
+
+        <div class="result-item">
+            <h3><a href="https://stackoverflow.example.com/questions/123456">
+                Which Python web framework should I learn in 2025? — Stack Overflow
+            </a></h3>
+            <cite>https://stackoverflow.example.com/questions/123456</cite>
+            <p>Answered: Django if you need a full-stack solution with batteries included.
+            Flask if you want flexibility and minimalism. FastAPI if you are building
+            APIs and want automatic validation and documentation.</p>
+        </div>
+
+        <div class="result-item">
+            <h3><a href="https://blog.example.com/python-frameworks-benchmark">
+                Benchmarking Python Web Frameworks — Performance Blog
+            </a></h3>
+            <cite>https://blog.example.com/python-frameworks-benchmark</cite>
+            <p>We benchmarked Django, Flask, FastAPI, Starlette, and Tornado handling
+            10,000 concurrent requests. FastAPI and Starlette led in throughput,
+            while Django provided the most consistent response times under load.</p>
+        </div>
+
+        <div class="result-item">
+            <h3><a href="https://github.example.com/awesome-python-web">
+                awesome-python-web: Curated List of Python Web Resources
+            </a></h3>
+            <cite>https://github.example.com/awesome-python-web</cite>
+            <p>A curated list of Python web frameworks, libraries, tools, and resources.
+            Includes full-stack frameworks, microframeworks, async frameworks,
+            REST libraries, and deployment tools. 15.2k stars.</p>
+        </div>
+
+        <!-- People also ask -->
+        <div class="people-also-ask">
+            <h3>People also ask</h3>
+            <details>
+                <summary>What is the best Python web framework for beginners?</summary>
+                <p>Flask is generally recommended for beginners due to its simplicity and
+                gentle learning curve. Django is also beginner-friendly if you prefer
+                having more structure and built-in features from the start.</p>
+            </details>
+            <details>
+                <summary>Is FastAPI better than Django?</summary>
+                <p>FastAPI and Django serve different purposes. FastAPI excels at building
+                APIs with automatic validation and documentation. Django is better for
+                full-stack web applications with admin interfaces and ORM.</p>
+            </details>
+            <details>
+                <summary>Can Python be used for large-scale web applications?</summary>
+                <p>Yes. Instagram, Pinterest, Dropbox, and Spotify all use Python
+                frameworks at massive scale. Django and FastAPI both support horizontal
+                scaling and async processing for high-traffic applications.</p>
+            </details>
+        </div>
+
+        <!-- Pagination -->
+        <nav class="pagination" aria-label="Search results pages">
+            <span class="current-page">1</span>
+            <a href="/search?q=python+web+framework&page=2">2</a>
+            <a href="/search?q=python+web+framework&page=3">3</a>
+            <a href="/search?q=python+web+framework&page=4">4</a>
+            <a href="/search?q=python+web+framework&page=5">5</a>
+            <a href="/search?q=python+web+framework&page=2" class="next-page">Next →</a>
+        </nav>
+    </main>
+
+    <footer class="search-footer">
+        <p>SearchEngine &copy; 2025</p>
+        <nav>
+            <a href="/about">About</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+            <a href="/help">Help</a>
+        </nav>
+    </footer>
+</body>
+</html>

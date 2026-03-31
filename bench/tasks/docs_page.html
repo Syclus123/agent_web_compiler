@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Guide — Vortex Framework Documentation</title>
+</head>
+<body>
+    <header class="doc-header">
+        <div class="header-inner">
+            <a href="/docs" class="logo">Vortex Docs</a>
+            <span class="version-badge">v3.2.1</span>
+            <nav class="header-nav">
+                <a href="/docs">Docs</a>
+                <a href="/api">API Reference</a>
+                <a href="/examples">Examples</a>
+                <a href="https://github.com/vortex/framework">GitHub</a>
+            </nav>
+            <div class="search-wrapper">
+                <input type="search" placeholder="Search docs..." id="doc-search" aria-label="Search documentation">
+                <kbd>⌘K</kbd>
+            </div>
+        </div>
+    </header>
+
+    <div class="docs-layout">
+        <!-- Sidebar navigation -->
+        <nav class="sidebar-nav" aria-label="Documentation">
+            <div class="nav-section">
+                <h3>Getting Started</h3>
+                <ul>
+                    <li><a href="/docs/installation">Installation</a></li>
+                    <li><a href="/docs/quickstart">Quick Start</a></li>
+                    <li class="active"><a href="/docs/configuration" aria-current="page">Configuration</a></li>
+                    <li><a href="/docs/first-project">First Project</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <h3>Core Concepts</h3>
+                <ul>
+                    <li><a href="/docs/architecture">Architecture</a></li>
+                    <li><a href="/docs/pipelines">Pipelines</a></li>
+                    <li><a href="/docs/plugins">Plugins</a></li>
+                    <li><a href="/docs/middleware">Middleware</a></li>
+                </ul>
+            </div>
+            <div class="nav-section">
+                <h3>Advanced</h3>
+                <ul>
+                    <li><a href="/docs/performance">Performance Tuning</a></li>
+                    <li><a href="/docs/security">Security</a></li>
+                    <li><a href="/docs/deployment">Deployment</a></li>
+                    <li><a href="/docs/migration">Migration Guide</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main documentation content -->
+        <main class="doc-content">
+            <div class="breadcrumbs">
+                <a href="/docs">Docs</a> &gt;
+                <a href="/docs/getting-started">Getting Started</a> &gt;
+                <span>Configuration</span>
+            </div>
+
+            <article>
+                <h1>Configuration Guide</h1>
+
+                <div class="page-toc">
+                    <h4>On this page</h4>
+                    <ul>
+                        <li><a href="#overview">Overview</a></li>
+                        <li><a href="#config-file">Configuration File</a></li>
+                        <li><a href="#env-vars">Environment Variables</a></li>
+                        <li><a href="#programmatic">Programmatic Configuration</a></li>
+                        <li><a href="#validation">Validation</a></li>
+                        <li><a href="#defaults">Default Values</a></li>
+                    </ul>
+                </div>
+
+                <section id="overview">
+                    <h2>Overview</h2>
+                    <p>Vortex uses a layered configuration system that supports multiple sources.
+                    Configuration is resolved in the following priority order (highest first):</p>
+                    <ol>
+                        <li>Programmatic overrides passed at runtime</li>
+                        <li>Environment variables prefixed with <code>VORTEX_</code></li>
+                        <li>Configuration file (<code>vortex.toml</code> or <code>vortex.yaml</code>)</li>
+                        <li>Built-in defaults</li>
+                    </ol>
+                    <p>All configuration values are validated at startup. Invalid values cause
+                    a clear error message with the expected type and constraints.</p>
+                </section>
+
+                <section id="config-file">
+                    <h2>Configuration File</h2>
+                    <p>The recommended way to configure Vortex is through a <code>vortex.toml</code>
+                    file in your project root. Here is a complete example:</p>
+
+                    <pre><code class="language-toml">[vortex]
+name = "my-project"
+version = "1.0.0"
+debug = false
+
+[vortex.server]
+host = "0.0.0.0"
+port = 8080
+workers = 4
+graceful_shutdown_timeout = 30
+
+[vortex.database]
+url = "postgresql://localhost:5432/mydb"
+pool_size = 20
+pool_timeout = 30
+echo_sql = false
+
+[vortex.cache]
+backend = "redis"
+url = "redis://localhost:6379/0"
+ttl = 3600
+prefix = "vortex:"
+
+[vortex.logging]
+level = "INFO"
+format = "json"
+file = "logs/vortex.log"</code></pre>
+
+                    <div class="callout callout-info">
+                        <p><strong>Note:</strong> YAML configuration files are also supported.
+                        If both <code>vortex.toml</code> and <code>vortex.yaml</code> exist,
+                        the TOML file takes precedence.</p>
+                    </div>
+                </section>
+
+                <section id="env-vars">
+                    <h2>Environment Variables</h2>
+                    <p>Any configuration value can be set via environment variables using the
+                    <code>VORTEX_</code> prefix and double underscores for nesting:</p>
+
+                    <pre><code class="language-bash"># Set server port
+export VORTEX_SERVER__PORT=9090
+
+# Set database URL
+export VORTEX_DATABASE__URL="postgresql://prod:5432/mydb"
+
+# Enable debug mode
+export VORTEX_DEBUG=true</code></pre>
+
+                    <p>Environment variables are especially useful for secrets and
+                    environment-specific values that should not be committed to version control.</p>
+                </section>
+
+                <section id="programmatic">
+                    <h2>Programmatic Configuration</h2>
+                    <p>For maximum flexibility, you can configure Vortex programmatically
+                    in your application code:</p>
+
+                    <pre><code class="language-python">from vortex import Vortex, Config
+
+config = Config(
+    server=Config.Server(host="0.0.0.0", port=8080, workers=4),
+    database=Config.Database(url="postgresql://localhost/mydb", pool_size=20),
+    cache=Config.Cache(backend="redis", url="redis://localhost:6379/0"),
+)
+
+app = Vortex(config=config)
+
+# Override specific values
+app.config.server.port = 9090
+app.config.logging.level = "DEBUG"</code></pre>
+
+                    <div class="callout callout-warning">
+                        <p><strong>Warning:</strong> Programmatic configuration changes after
+                        <code>app.start()</code> will not take effect for already-initialized
+                        components. Restart the application to apply changes.</p>
+                    </div>
+                </section>
+
+                <section id="validation">
+                    <h2>Validation</h2>
+                    <p>Vortex validates all configuration at startup using typed schemas.
+                    If a configuration value is invalid, you will see a clear error:</p>
+
+                    <pre><code class="language-text">ConfigurationError: Invalid value for 'server.port'
+  Expected: integer between 1 and 65535
+  Got: -1
+  Source: environment variable VORTEX_SERVER__PORT</code></pre>
+
+                    <p>You can also validate configuration programmatically before starting:</p>
+
+                    <pre><code class="language-python">from vortex import Config
+
+config = Config.from_file("vortex.toml")
+errors = config.validate()
+
+if errors:
+    for error in errors:
+        print(f"Config error: {error}")
+else:
+    print("Configuration is valid")</code></pre>
+                </section>
+
+                <section id="defaults">
+                    <h2>Default Values</h2>
+                    <p>All configuration options have sensible defaults so you can start
+                    with minimal configuration. Here are the most important defaults:</p>
+
+                    <table class="defaults-table">
+                        <thead>
+                            <tr>
+                                <th>Setting</th>
+                                <th>Default</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>server.host</code></td><td><code>"127.0.0.1"</code></td><td>Listen address</td></tr>
+                            <tr><td><code>server.port</code></td><td><code>8080</code></td><td>Listen port</td></tr>
+                            <tr><td><code>server.workers</code></td><td><code>1</code></td><td>Worker processes</td></tr>
+                            <tr><td><code>database.pool_size</code></td><td><code>10</code></td><td>Connection pool size</td></tr>
+                            <tr><td><code>cache.backend</code></td><td><code>"memory"</code></td><td>Cache backend</td></tr>
+                            <tr><td><code>cache.ttl</code></td><td><code>300</code></td><td>Default TTL in seconds</td></tr>
+                            <tr><td><code>logging.level</code></td><td><code>"INFO"</code></td><td>Log level</td></tr>
+                            <tr><td><code>logging.format</code></td><td><code>"text"</code></td><td>Log output format</td></tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <!-- Page navigation -->
+                <nav class="page-nav">
+                    <a href="/docs/quickstart" class="prev-page">← Quick Start</a>
+                    <a href="/docs/first-project" class="next-page">First Project →</a>
+                </nav>
+            </article>
+
+            <!-- Edit link -->
+            <div class="edit-page">
+                <a href="https://github.com/vortex/framework/edit/main/docs/configuration.md">
+                    Edit this page on GitHub
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <footer class="doc-footer">
+        <p>&copy; 2025 Vortex Framework. Licensed under MIT.</p>
+        <nav>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+        </nav>
+    </footer>
+</body>
+</html>

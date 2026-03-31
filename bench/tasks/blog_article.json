@@ -1,0 +1,33 @@
+{
+  "name": "blog_article",
+  "description": "A typical blog article with header, footer, sidebar, article body, and code blocks",
+  "source_type": "html",
+  "html_file": "blog_article.html",
+  "expected": {
+    "headings": [
+      "Building Reliable Web Scrapers in Python",
+      "Introduction",
+      "Setting Up the Environment",
+      "Core Scraper Pattern",
+      "Error Handling",
+      "Conclusion"
+    ],
+    "min_blocks": 10,
+    "min_tables": 0,
+    "min_code_blocks": 3,
+    "key_phrases": [
+      "production-grade patterns",
+      "reliable web scrapers",
+      "separation of concerns",
+      "retry logic with exponential backoff",
+      "ReliableScraper"
+    ],
+    "expected_actions": [
+      {"type": "navigate", "label_contains": "Home"},
+      {"type": "navigate", "label_contains": "Tutorials"},
+      {"type": "submit", "label_contains": "Search"}
+    ],
+    "noise_phrases": ["cookie", "subscribe", "advertisement", "analytics"],
+    "main_action_label": "Search"
+  }
+}
