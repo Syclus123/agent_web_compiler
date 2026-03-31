@@ -168,3 +168,82 @@ class TestCORS:
         )
         assert resp.status_code == 200
         assert "access-control-allow-origin" in resp.headers
+
+
+# ---------------------------------------------------------------------------
+# Response headers
+# ---------------------------------------------------------------------------
+
+
+class TestResponseHeaders:
+    def test_compile_returns_compile_time_header(self, client: TestClient) -> None:
+        resp = client.post(
+            "/v1/compile",
+            json={"html": "<html><body><h1>Hello</h1></body></html>"},
+        )
+        assert resp.status_code == 200
+        assert "x-compile-time-ms" in resp.headers
+        compile_time = int(resp.headers["x-compile-time-ms"])
+        assert compile_time >= 0
+
+    def test_compile_returns_block_count_header(self, client: TestClient) -> None:
+        resp = client.post(
+            "/v1/compile",
+            json={"html": "<html><body><h1>Hello</h1><p>World</p></body></html>"},
+        )
+        assert resp.status_code == 200
+        assert "x-block-count" in resp.headers
+        block_count = int(resp.headers["x-block-count"])
+        assert block_count > 0
+
+    def test_compile_returns_action_count_header(self, client: TestClient) -> None:
+        resp = client.post(
+            "/v1/compile",
+            json={"html": '<html><body><a href="/link">Click</a></body></html>'},
+        )
+        assert resp.status_code == 200
+        assert "x-action-count" in resp.headers
+
+    def test_markdown_endpoint_has_headers(self, client: TestClient) -> None:
+        resp = client.post(
+            "/v1/compile/markdown",
+            json={"html": "<html><body><p>Test</p></body></html>"},
+        )
+        assert resp.status_code == 200
+        assert "x-compile-time-ms" in resp.headers
+
+    def test_blocks_endpoint_has_headers(self, client: TestClient) -> None:
+        resp = client.post(
+            "/v1/compile/blocks",
+            json={"html": "<html><body><p>Test</p></body></html>"},
+        )
+        assert resp.status_code == 200
+        assert "x-block-count" in resp.headers
+
+    def test_actions_endpoint_has_headers(self, client: TestClient) -> None:
+        resp = client.post(
+            "/v1/compile/actions",
+            json={"html": "<html><body><p>Test</p></body></html>"},
+        )
+        assert resp.status_code == 200
+        assert "x-action-count" in resp.headers
+
+
+# ---------------------------------------------------------------------------
+# Error sanitization
+# ---------------------------------------------------------------------------
+
+
+class TestErrorSanitization:
+    """Verify error responses don't leak internal details."""
+
+    def test_compilation_error_no_stack_trace(self, client: TestClient) -> None:
+        """Compile errors should return structured error, not raw exception text."""
+        # This test verifies the error format; actual compilation errors
+        # are hard to trigger without network, so we just verify the
+        # error format for validation errors is clean.
+        resp = client.post("/v1/compile", json={})
+        assert resp.status_code == 400
+        detail = resp.json()["detail"]
+        assert isinstance(detail, str)
+        assert "Traceback" not in detail

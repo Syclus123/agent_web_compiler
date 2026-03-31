@@ -223,8 +223,11 @@ TOOLS: list[dict[str, Any]] = [
 
 def _handle_compile_url(arguments: dict[str, Any]) -> str:
     """Handle the compile_url tool call."""
+    url = arguments.get("url")
+    if not url or not isinstance(url, str):
+        raise ValueError("Required parameter 'url' must be a non-empty string.")
     result = _compile_url_sync(
-        url=arguments["url"],
+        url=url,
         mode=arguments.get("mode", "balanced"),
         include_actions=arguments.get("include_actions", True),
         render=arguments.get("render", "off"),
@@ -234,8 +237,11 @@ def _handle_compile_url(arguments: dict[str, Any]) -> str:
 
 def _handle_compile_html(arguments: dict[str, Any]) -> str:
     """Handle the compile_html tool call."""
+    html = arguments.get("html")
+    if not html or not isinstance(html, str):
+        raise ValueError("Required parameter 'html' must be a non-empty string.")
     result = _compile_html_sync(
-        html=arguments["html"],
+        html=html,
         source_url=arguments.get("source_url"),
         mode=arguments.get("mode", "balanced"),
     )
@@ -244,8 +250,11 @@ def _handle_compile_html(arguments: dict[str, Any]) -> str:
 
 def _handle_compile_file(arguments: dict[str, Any]) -> str:
     """Handle the compile_file tool call."""
+    path = arguments.get("path")
+    if not path or not isinstance(path, str):
+        raise ValueError("Required parameter 'path' must be a non-empty string.")
     result = _compile_file_sync(
-        path=arguments["path"],
+        path=path,
         mode=arguments.get("mode", "balanced"),
     )
     return json.dumps(result, indent=2, default=str, ensure_ascii=False)
@@ -253,9 +262,12 @@ def _handle_compile_file(arguments: dict[str, Any]) -> str:
 
 def _handle_get_blocks(arguments: dict[str, Any]) -> str:
     """Handle the get_blocks tool call."""
+    url = arguments.get("url")
+    if not url or not isinstance(url, str):
+        raise ValueError("Required parameter 'url' must be a non-empty string.")
     from agent_web_compiler.api.compile import compile_url
 
-    doc = compile_url(arguments["url"])
+    doc = compile_url(url)
     min_importance = arguments.get("min_importance", 0.3)
     block_types = arguments.get("block_types")
 
@@ -270,9 +282,12 @@ def _handle_get_blocks(arguments: dict[str, Any]) -> str:
 
 def _handle_get_actions(arguments: dict[str, Any]) -> str:
     """Handle the get_actions tool call."""
+    url = arguments.get("url")
+    if not url or not isinstance(url, str):
+        raise ValueError("Required parameter 'url' must be a non-empty string.")
     from agent_web_compiler.api.compile import compile_url
 
-    doc = compile_url(arguments["url"], include_actions=True)
+    doc = compile_url(url, include_actions=True)
     actions = doc.actions
     group = arguments.get("group")
     if group:
@@ -284,9 +299,12 @@ def _handle_get_actions(arguments: dict[str, Any]) -> str:
 
 def _handle_get_markdown(arguments: dict[str, Any]) -> str:
     """Handle the get_markdown tool call."""
+    url = arguments.get("url")
+    if not url or not isinstance(url, str):
+        raise ValueError("Required parameter 'url' must be a non-empty string.")
     from agent_web_compiler.api.compile import compile_url
 
-    doc = compile_url(arguments["url"])
+    doc = compile_url(url)
     max_blocks = arguments.get("max_blocks")
     if max_blocks is not None:
         return doc.summary_markdown(max_blocks=max_blocks)
@@ -344,7 +362,10 @@ def create_server() -> Any:
             return [
                 TextContent(
                     type="text",
-                    text=json.dumps({"error": f"Unknown tool: {name}"}),
+                    text=json.dumps({
+                        "error_code": "UNKNOWN_TOOL",
+                        "error": f"Unknown tool: {name}",
+                    }),
                 )
             ]
 
@@ -352,20 +373,37 @@ def create_server() -> Any:
             # Run synchronous compilation in a thread to avoid blocking
             result = await asyncio.to_thread(handler, arguments)
             return [TextContent(type="text", text=result)]
+        except ValueError as e:
+            # Input validation errors (e.g. missing required params)
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps({
+                        "error_code": "INVALID_INPUT",
+                        "error": str(e),
+                    }),
+                )
+            ]
         except Exception as e:
             # Import here to avoid circular imports at module level
-            from agent_web_compiler.core.errors import CompilerError
+            from agent_web_compiler.core.errors import CompilerError, FetchError
 
-            if isinstance(e, CompilerError):
+            if isinstance(e, FetchError):
                 error_msg = {
-                    "error": str(e),
+                    "error_code": "FETCH_ERROR",
+                    "error": "Failed to fetch the requested resource.",
                     "stage": e.stage,
-                    "context": e.context,
+                }
+            elif isinstance(e, CompilerError):
+                error_msg = {
+                    "error_code": "COMPILATION_ERROR",
+                    "error": "An error occurred during compilation.",
+                    "stage": e.stage,
                 }
             else:
                 error_msg = {
-                    "error": str(e),
-                    "type": type(e).__name__,
+                    "error_code": "INTERNAL_ERROR",
+                    "error": "An unexpected internal error occurred.",
                 }
             logger.exception("Tool %s failed", name)
             return [

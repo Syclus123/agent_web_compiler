@@ -63,6 +63,16 @@ class SiteProfile(BaseModel):
     )
 
 
+class Asset(BaseModel):
+    """A referenced asset in the document (image, stylesheet, script, font, etc.)."""
+
+    id: str = Field(..., description="Unique asset identifier, e.g. 'asset_001'")
+    type: str = Field(..., description="Asset type: 'image', 'stylesheet', 'script', 'font'")
+    url: str | None = Field(None, description="URL or path of the asset")
+    alt: str | None = Field(None, description="Alt text (for images)")
+    mime_type: str | None = Field(None, description="MIME type if known")
+
+
 class AgentDocument(BaseModel):
     """The canonical compiled output — an agent-native representation of a document.
 
@@ -97,6 +107,18 @@ class AgentDocument(BaseModel):
     # Actions
     actions: list[Action] = Field(
         default_factory=list, description="Interactive affordances"
+    )
+
+    # Assets
+    assets: list[Asset] = Field(
+        default_factory=list,
+        description="Referenced assets (images, stylesheets, scripts, fonts)",
+    )
+
+    # Provenance index
+    provenance_index: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Reverse lookup: source region (e.g. section path) -> block IDs",
     )
 
     # Metadata

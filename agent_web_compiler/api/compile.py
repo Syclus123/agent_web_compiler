@@ -12,9 +12,55 @@ Usage:
 
 from __future__ import annotations
 
+import json as _json
+
 from agent_web_compiler.core.config import CompileConfig, CompileMode, RenderMode
 from agent_web_compiler.core.document import AgentDocument
 from agent_web_compiler.core.errors import FetchError
+
+
+def _looks_like_json(content: str) -> bool:
+    """Heuristic check: does the content look like a JSON response?"""
+    stripped = content.lstrip()
+    return stripped.startswith("{") or stripped.startswith("[")
+
+
+def compile_json(
+    content: str | dict,
+    *,
+    source_url: str | None = None,
+    mode: str = "balanced",
+    include_actions: bool = True,
+    debug: bool = False,
+    config: CompileConfig | None = None,
+) -> AgentDocument:
+    """Compile a JSON API response into an AgentDocument.
+
+    Args:
+        content: JSON string or already-parsed dict.
+        source_url: Optional URL of the API endpoint.
+        mode: Compilation mode.
+        include_actions: Whether to extract action affordances.
+        debug: Whether to include debug metadata.
+        config: Full config object (overrides individual params if provided).
+
+    Returns:
+        An AgentDocument with semantic blocks representing the API response.
+
+    Raises:
+        ParseError: If content is an invalid JSON string.
+    """
+    if config is None:
+        config = CompileConfig(
+            mode=CompileMode(mode),
+            include_actions=include_actions,
+            debug=debug,
+        )
+
+    from agent_web_compiler.pipeline.api_compiler import APICompiler
+
+    compiler = APICompiler()
+    return compiler.compile(content, source_url=source_url, config=config)
 
 
 def compile_html(
@@ -51,6 +97,14 @@ def compile_html(
             include_provenance=include_provenance,
             debug=debug,
         )
+
+    # Detect JSON content and route to API compiler
+    if _looks_like_json(html):
+        try:
+            _json.loads(html)
+            return compile_json(html, source_url=source_url, config=config)
+        except (ValueError, TypeError):
+            pass  # Not valid JSON, treat as HTML
 
     from agent_web_compiler.pipeline.compiler import HTMLCompiler
 
@@ -159,6 +213,23 @@ def compile_file(
 
         compiler = PDFCompiler()
         return compiler.compile(result.content, source_file=path, config=config)
+
+    if result.content_type == (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ):
+        from agent_web_compiler.pipeline.docx_compiler import DOCXCompiler
+
+        compiler_docx = DOCXCompiler()
+        content_bytes = (
+            result.content
+            if isinstance(result.content, bytes)
+            else result.content.encode("utf-8")
+        )
+        return compiler_docx.compile(content_bytes, source_file=path, config=config)
+
+    if result.content_type == "application/json":
+        content_str = result.content if isinstance(result.content, str) else result.content.decode("utf-8")
+        return compile_json(content_str, source_url=None, config=config)
 
     # Default: treat as HTML
     content = result.content if isinstance(result.content, str) else result.content.decode("utf-8")

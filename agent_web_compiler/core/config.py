@@ -73,5 +73,11 @@ class CompileConfig(BaseModel):
         description="User-Agent header for HTTP requests",
     )
 
+    # Cache
+    cache_dir: str | None = Field(
+        None, description="Cache directory. None disables caching."
+    )
+    cache_ttl: float = Field(3600.0, description="Cache TTL in seconds")
+
     # Debug
     debug: bool = Field(False, description="Enable debug metadata in output")

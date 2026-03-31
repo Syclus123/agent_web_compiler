@@ -267,6 +267,46 @@ def _infer_state_effect(el: HtmlElement, action_type: ActionType) -> StateEffect
 # ---------------------------------------------------------------------------
 
 
+def _find_enclosing_form(el: HtmlElement) -> HtmlElement | None:
+    """Walk up from *el* to find the nearest ``<form>`` ancestor, or None."""
+    parent = el.getparent()
+    while parent is not None:
+        if parent.tag == "form":
+            return parent
+        parent = parent.getparent()
+    return None
+
+
+# Types that are form-control inputs (should be merged into composite action)
+_FORM_CONTROL_TYPES = frozenset({
+    ActionType.INPUT,
+    ActionType.SELECT,
+    ActionType.TOGGLE,
+    ActionType.UPLOAD,
+    ActionType.SUBMIT,
+})
+
+
+def _input_field_type(el: HtmlElement) -> str:
+    """Return the HTML input type string for a form control element."""
+    tag = el.tag
+    if tag == "textarea":
+        return "text"
+    if tag == "select":
+        return "select"
+    if tag == "input":
+        return (el.get("type") or "text").lower()
+    return "text"
+
+
+def _input_field_name(el: HtmlElement, label: str) -> str:
+    """Return a field name for a form control, preferring the name attribute."""
+    name = el.get("name")
+    if name and name.strip():
+        return name.strip()
+    return label
+
+
 def _assign_group(action_type: ActionType) -> str:
     """Assign the action to a logical group."""
     if action_type == ActionType.NAVIGATE or action_type == ActionType.DOWNLOAD:
@@ -406,6 +446,131 @@ class ActionExtractor:
             )
             order += 1
 
+        # --- Form field grouping ---
+        actions = self._group_form_actions(actions, root, config)
+
         # Sort by priority descending (stable)
         actions.sort(key=lambda a: a.priority, reverse=True)
         return actions
+
+    @staticmethod
+    def _group_form_actions(
+        actions: list[Action],
+        root: HtmlElement,
+        config: CompileConfig,
+    ) -> list[Action]:
+        """Group input/select/toggle actions by enclosing ``<form>`` element.
+
+        For each ``<form>`` that contains at least one submit/click action,
+        create a single composite SUBMIT action and remove the individual
+        form-control actions.  Standalone inputs (not inside a form, or in a
+        form with no submit) are kept unchanged.  Navigate/download actions
+        inside forms are also kept.
+        """
+        if not actions:
+            return actions
+
+        # Build a map from action id -> lxml element so we can find forms.
+        # We re-query the DOM to pair each action with its element.
+        all_elements = root.cssselect(_INTERACTIVE_SELECTOR)
+        selector_to_element: dict[str, HtmlElement] = {}
+        for el in all_elements:
+            sel = _build_selector(el)
+            if sel not in selector_to_element:
+                selector_to_element[sel] = el
+
+        # Map: form element id(…) -> (form_el, [action indices of controls], [submit indices])
+        form_info_t = tuple[HtmlElement, list[int], list[int]]
+        form_map: dict[int, form_info_t] = {}
+
+        for idx, action in enumerate(actions):
+            if action.selector is None:
+                continue
+            el = selector_to_element.get(action.selector)
+            if el is None:
+                continue
+            form_el = _find_enclosing_form(el)
+            if form_el is None:
+                continue
+
+            form_key = id(form_el)
+            if form_key not in form_map:
+                form_map[form_key] = (form_el, [], [])
+
+            _, controls, submits = form_map[form_key]
+            if action.type in _FORM_CONTROL_TYPES:
+                controls.append(idx)
+            if action.type in (ActionType.SUBMIT, ActionType.CLICK):
+                submits.append(idx)
+
+        # Build composite actions for forms that have a submit control
+        indices_to_remove: set[int] = set()
+        composite_actions: list[Action] = []
+
+        for form_el, control_indices, submit_indices in form_map.values():
+            if not submit_indices:
+                continue  # No submit button — keep individual actions
+
+            # Pick the first submit/click as the representative
+            submit_idx = submit_indices[0]
+            submit_action = actions[submit_idx]
+
+            # Gather field info from non-submit controls
+            required_fields: list[str] = []
+            value_schema: dict[str, str] = {}
+            max_priority = submit_action.priority
+            max_confidence = submit_action.confidence
+
+            for ci in control_indices:
+                ctrl = actions[ci]
+                max_priority = max(max_priority, ctrl.priority)
+                max_confidence = max(max_confidence, ctrl.confidence)
+
+                if ctrl.type == ActionType.SUBMIT:
+                    continue  # Don't add submit button as a field
+                if ctrl.type == ActionType.CLICK:
+                    continue  # Don't add plain click as a field
+
+                el = selector_to_element.get(ctrl.selector or "")
+                if el is None:
+                    continue
+
+                field_name = _input_field_name(el, ctrl.label)
+                field_type = _input_field_type(el)
+                required_fields.append(field_name)
+                value_schema[field_name] = field_type
+
+            # Mark all form-control indices for removal
+            for ci in control_indices:
+                indices_to_remove.add(ci)
+
+            # Build the composite action
+            form_selector = _build_selector(form_el)
+
+            provenance: Provenance | None = None
+            if config.include_provenance:
+                provenance = Provenance(dom=_build_dom_provenance(form_el))
+
+            composite = Action(
+                id=submit_action.id,
+                type=ActionType.SUBMIT,
+                label=submit_action.label,
+                selector=form_selector,
+                role=submit_action.role,
+                required_fields=required_fields,
+                value_schema=value_schema if value_schema else None,
+                confidence=max_confidence,
+                priority=max_priority,
+                state_effect=submit_action.state_effect,
+                provenance=provenance,
+                group="form",
+            )
+            composite_actions.append(composite)
+
+        # Build the final list: keep non-removed actions, add composites
+        result: list[Action] = []
+        for idx, action in enumerate(actions):
+            if idx not in indices_to_remove:
+                result.append(action)
+        result.extend(composite_actions)
+        return result

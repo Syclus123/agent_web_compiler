@@ -2,7 +2,7 @@
 
 Pipeline stages:
     fetch/render -> normalize -> segment -> score_salience -> filter_query
-    -> extract_actions -> align -> build_document
+    -> extract_actions -> align -> validate -> build_document
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from typing import Any
 from agent_web_compiler.core.action import Action
 from agent_web_compiler.core.block import Block
 from agent_web_compiler.core.config import CompileConfig, RenderMode
-from agent_web_compiler.core.document import AgentDocument, Quality, SourceType
+from agent_web_compiler.core.document import AgentDocument, SourceType
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class HTMLCompiler:
 
     Each stage is explicit and independently testable. The pipeline shape is:
     fetch/render -> normalize -> segment -> score_salience -> filter_query
-    -> extract_actions -> align -> build_document
+    -> extract_actions -> align -> validate -> build_document
     """
 
     def compile(
@@ -46,6 +46,22 @@ class HTMLCompiler:
         """
         if config is None:
             config = CompileConfig()
+
+        # --- Cache check ---
+        from agent_web_compiler.pipeline.cache import CompilationCache
+
+        cache: CompilationCache | None = None
+        content_hash: str | None = None
+        if config.cache_dir is not None:
+            cache = CompilationCache(
+                cache_dir=config.cache_dir,
+                default_ttl=config.cache_ttl,
+            )
+            content_hash = CompilationCache.hash_content(html)
+            cached_doc = cache.get(content_hash)
+            if cached_doc is not None:
+                logger.debug("Cache hit for %s", content_hash)
+                return cached_doc
 
         timings: dict[str, float] = {}
         pipeline_start = time.perf_counter()
@@ -107,6 +123,17 @@ class HTMLCompiler:
             actions = ActionExtractor().extract(html, config)
             timings["extract_actions_ms"] = (time.perf_counter() - t0) * 1000
 
+        # --- Stage 3b: Extract assets ---
+        t0 = time.perf_counter()
+        from agent_web_compiler.core.document import Asset
+        from agent_web_compiler.extractors.asset_extractor import AssetExtractor
+
+        assets: list[Asset] = AssetExtractor().extract(html)
+        timings["extract_assets_ms"] = (time.perf_counter() - t0) * 1000
+
+        # --- Stage 3c: Build provenance index ---
+        provenance_index = self._build_provenance_index(blocks)
+
         # --- Stage 4: Align provenance ---
         if config.include_provenance:
             t0 = time.perf_counter()
@@ -115,7 +142,17 @@ class HTMLCompiler:
             blocks, actions = DOMAligner().align(blocks, actions, html, config)
             timings["align_ms"] = (time.perf_counter() - t0) * 1000
 
-        # --- Stage 5: Build canonical markdown ---
+        # --- Stage 5: Validate ---
+        t0 = time.perf_counter()
+        from agent_web_compiler.pipeline.validator import DocumentValidator
+
+        blocks, actions, quality = DocumentValidator().validate(
+            blocks, actions, cleaned_html, config,
+        )
+        quality.dynamic_rendered = dynamic_rendered
+        timings["validate_ms"] = (time.perf_counter() - t0) * 1000
+
+        # --- Stage 6: Build canonical markdown ---
         t0 = time.perf_counter()
         from agent_web_compiler.exporters.markdown_exporter import to_markdown
 
@@ -144,7 +181,7 @@ class HTMLCompiler:
 
         doc_id = AgentDocument.make_doc_id(html)
 
-        return AgentDocument(
+        doc = AgentDocument(
             doc_id=doc_id,
             source_type=SourceType.HTML,
             source_url=source_url,
@@ -152,14 +189,43 @@ class HTMLCompiler:
             blocks=blocks,
             canonical_markdown=canonical_markdown,
             actions=actions,
-            quality=Quality(
-                block_count=len(blocks),
-                action_count=len(actions),
-                dynamic_rendered=dynamic_rendered,
-            ),
+            assets=assets,
+            provenance_index=provenance_index,
+            quality=quality,
             compiled_at=datetime.now(timezone.utc),
             debug=debug,
         )
+
+        # --- Cache store ---
+        if cache is not None and content_hash is not None:
+            try:
+                cache.put(content_hash, doc)
+                logger.debug("Cached result for %s", content_hash)
+            except Exception as exc:
+                logger.warning("Failed to cache result: %s", exc)
+
+        return doc
+
+    @staticmethod
+    def _build_provenance_index(blocks: list[Block]) -> dict[str, list[str]]:
+        """Build a reverse lookup from section paths to block IDs.
+
+        Maps each unique section path (joined with ' > ') to the list of
+        block IDs that belong to that section.
+
+        Args:
+            blocks: List of blocks with section_path populated.
+
+        Returns:
+            Dict mapping section path strings to lists of block IDs.
+        """
+        index: dict[str, list[str]] = {}
+        for block in blocks:
+            key = " > ".join(block.section_path) if block.section_path else "(root)"
+            if key not in index:
+                index[key] = []
+            index[key].append(block.id)
+        return index
 
     @staticmethod
     def _maybe_render(

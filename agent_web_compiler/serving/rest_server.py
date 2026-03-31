@@ -3,6 +3,10 @@
 Provides a FastAPI application with endpoints for compiling content
 into AgentDocuments and retrieving specific output facets.
 
+Note: For very large HTML inputs, consider chunking or streaming.
+The server does not enforce a hard request size limit, but payloads
+larger than ~10MB may cause slowdowns or memory pressure.
+
 Usage:
     from agent_web_compiler.serving.rest_server import create_app
 
@@ -12,10 +16,12 @@ Usage:
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from agent_web_compiler.core.config import CompileConfig, CompileMode, RenderMode
@@ -134,8 +140,11 @@ def _build_config(req: CompileRequest) -> CompileConfig:
     )
 
 
-def _compile_from_request(req: CompileRequest) -> AgentDocument:
+def _compile_from_request(req: CompileRequest) -> tuple[AgentDocument, float]:
     """Run compilation based on the request source.
+
+    Returns:
+        A tuple of (AgentDocument, compile_time_seconds).
 
     Raises:
         HTTPException: On input validation or compilation errors.
@@ -143,37 +152,67 @@ def _compile_from_request(req: CompileRequest) -> AgentDocument:
     _validate_compile_request(req)
     config = _build_config(req)
 
+    t0 = time.monotonic()
+
     try:
         if req.url is not None:
             from agent_web_compiler.api.compile import compile_url
 
-            return compile_url(req.url, config=config)
+            doc = compile_url(req.url, config=config)
+            return doc, time.monotonic() - t0
 
         if req.html is not None:
             from agent_web_compiler.api.compile import compile_html
 
-            return compile_html(req.html, config=config)
+            doc = compile_html(req.html, config=config)
+            return doc, time.monotonic() - t0
 
         if req.file_path is not None:
             from agent_web_compiler.api.compile import compile_file
 
-            return compile_file(req.file_path, config=config)
+            doc = compile_file(req.file_path, config=config)
+            return doc, time.monotonic() - t0
 
     except FetchError as exc:
         logger.warning("Fetch error: %s", exc, exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Fetch error: {exc}") from exc
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error_code": "FETCH_ERROR",
+                "message": "Failed to fetch the requested resource.",
+            },
+        ) from exc
     except CompilerError as exc:
         logger.error("Compilation error: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Compilation error: {exc}") from exc
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error_code": "COMPILATION_ERROR",
+                "message": "An error occurred during compilation.",
+                "stage": exc.stage,
+            },
+        ) from exc
     except Exception as exc:
         logger.error("Unexpected error during compilation: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Internal error: {type(exc).__name__}: {exc}",
+            detail={
+                "error_code": "INTERNAL_ERROR",
+                "message": "An unexpected internal error occurred.",
+            },
         ) from exc
 
     # Unreachable due to _validate_compile_request, but satisfy type checker
     raise HTTPException(status_code=400, detail="No source provided.")  # pragma: no cover
+
+
+def _compile_headers(doc: AgentDocument, compile_time_s: float) -> dict[str, str]:
+    """Build response headers with compilation metadata."""
+    return {
+        "X-Compile-Time-Ms": str(int(compile_time_s * 1000)),
+        "X-Block-Count": str(doc.block_count),
+        "X-Action-Count": str(doc.action_count),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -203,29 +242,35 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------------
 
     @app.post("/v1/compile", response_model=None)
-    def compile_endpoint(req: CompileRequest) -> dict[str, Any]:
+    def compile_endpoint(req: CompileRequest) -> JSONResponse:
         """Compile content into a full AgentDocument."""
-        doc = _compile_from_request(req)
-        return doc.model_dump(mode="json")
+        doc, compile_time = _compile_from_request(req)
+        return JSONResponse(
+            content=doc.model_dump(mode="json"),
+            headers=_compile_headers(doc, compile_time),
+        )
 
     # ------------------------------------------------------------------
     # POST /v1/compile/markdown — markdown only
     # ------------------------------------------------------------------
 
-    @app.post("/v1/compile/markdown", response_model=MarkdownResponse)
-    def compile_markdown_endpoint(req: CompileRequest) -> MarkdownResponse:
+    @app.post("/v1/compile/markdown", response_model=None)
+    def compile_markdown_endpoint(req: CompileRequest) -> JSONResponse:
         """Compile content and return only the canonical markdown."""
-        doc = _compile_from_request(req)
-        return MarkdownResponse(markdown=doc.canonical_markdown)
+        doc, compile_time = _compile_from_request(req)
+        return JSONResponse(
+            content={"markdown": doc.canonical_markdown},
+            headers=_compile_headers(doc, compile_time),
+        )
 
     # ------------------------------------------------------------------
     # POST /v1/compile/blocks — blocks with filtering
     # ------------------------------------------------------------------
 
-    @app.post("/v1/compile/blocks", response_model=BlocksResponse)
-    def compile_blocks_endpoint(req: CompileBlocksRequest) -> BlocksResponse:
+    @app.post("/v1/compile/blocks", response_model=None)
+    def compile_blocks_endpoint(req: CompileBlocksRequest) -> JSONResponse:
         """Compile content and return filtered blocks."""
-        doc = _compile_from_request(req)
+        doc, compile_time = _compile_from_request(req)
 
         blocks = doc.blocks
 
@@ -238,18 +283,19 @@ def create_app() -> FastAPI:
             type_set = set(req.block_types)
             blocks = [b for b in blocks if b.type in type_set or b.type.value in type_set]
 
-        return BlocksResponse(
-            blocks=[b.model_dump(mode="json") for b in blocks],
+        return JSONResponse(
+            content={"blocks": [b.model_dump(mode="json") for b in blocks]},
+            headers=_compile_headers(doc, compile_time),
         )
 
     # ------------------------------------------------------------------
     # POST /v1/compile/actions — actions with filtering
     # ------------------------------------------------------------------
 
-    @app.post("/v1/compile/actions", response_model=ActionsResponse)
-    def compile_actions_endpoint(req: CompileActionsRequest) -> ActionsResponse:
+    @app.post("/v1/compile/actions", response_model=None)
+    def compile_actions_endpoint(req: CompileActionsRequest) -> JSONResponse:
         """Compile content and return filtered actions."""
-        doc = _compile_from_request(req)
+        doc, compile_time = _compile_from_request(req)
 
         actions = doc.actions
 
@@ -257,8 +303,9 @@ def create_app() -> FastAPI:
         if req.group is not None:
             actions = [a for a in actions if a.group == req.group]
 
-        return ActionsResponse(
-            actions=[a.model_dump(mode="json") for a in actions],
+        return JSONResponse(
+            content={"actions": [a.model_dump(mode="json") for a in actions]},
+            headers=_compile_headers(doc, compile_time),
         )
 
     # ------------------------------------------------------------------

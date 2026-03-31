@@ -191,6 +191,8 @@ class HTMLSegmenter:
             return BlockType.FIGURE_CAPTION
         if tag == "img":
             return BlockType.IMAGE
+        if tag == "details":
+            return BlockType.FAQ
         return None
 
     def _is_nested_duplicate(
@@ -198,8 +200,9 @@ class HTMLSegmenter:
     ) -> bool:
         """Return ``True`` when *element* is inside an ancestor already captured.
 
-        Avoids double-counting, e.g. ``<code>`` inside ``<pre>`` or
-        ``<li>`` inside ``<ul>``.
+        Avoids double-counting, e.g. ``<code>`` inside ``<pre>``,
+        ``<figcaption>`` inside ``<figure>``, or nested ``<ul>/<ol>``
+        inside a parent list.
         """
         if tag == "code":
             parent = element.getparent()
@@ -209,6 +212,13 @@ class HTMLSegmenter:
             parent = element.getparent()
             if parent is not None and parent.tag == "figure":
                 return True
+        # Nested lists: a <ul>/<ol>/<dl> inside an <li> of another list
+        if tag in ("ul", "ol", "dl"):
+            ancestor = element.getparent()
+            while ancestor is not None:
+                if isinstance(ancestor, HtmlElement) and ancestor.tag in ("ul", "ol", "dl"):
+                    return True
+                ancestor = ancestor.getparent()
         return False
 
     # ------------------------------------------------------------------ #
@@ -217,14 +227,21 @@ class HTMLSegmenter:
 
     @staticmethod
     def _table_dimensions(table: HtmlElement) -> tuple[int, int]:
-        """Return ``(row_count, col_count)`` for a ``<table>`` element."""
+        """Return ``(row_count, col_count)`` for a ``<table>`` element.
+
+        Accounts for ``colspan`` attributes when counting columns.
+        """
         rows = table.findall(".//tr")
         row_count = len(rows)
         col_count = 0
         if rows:
             first_row = rows[0]
             cells = first_row.findall("td") + first_row.findall("th")
-            col_count = len(cells)
+            for cell in cells:
+                try:
+                    col_count += int(cell.get("colspan", "1"))
+                except (ValueError, TypeError):
+                    col_count += 1
         return row_count, col_count
 
     @staticmethod
@@ -256,15 +273,55 @@ class HTMLSegmenter:
 
     @staticmethod
     def _extract_list_items(list_el: HtmlElement) -> list[str]:
-        """Extract individual list item texts from a ul/ol/dl."""
+        """Extract individual list item texts from a ul/ol/dl.
+
+        For ``<dl>`` elements, ``<dt>``/``<dd>`` pairs are merged into
+        a single ``"term: definition"`` string.
+        """
+        if list_el.tag == "dl":
+            return HTMLSegmenter._extract_dl_items(list_el)
+
         items: list[str] = []
         for child in list_el:
             if not isinstance(child, HtmlElement):
                 continue
-            if child.tag in ("li", "dt", "dd"):
-                item_text = re.sub(r"\s+", " ", (child.text_content() or "")).strip()
+            if child.tag == "li":
+                # Get only the direct text, not text from nested sub-lists
+                parts: list[str] = []
+                if child.text and child.text.strip():
+                    parts.append(child.text.strip())
+                for sub in child:
+                    if isinstance(sub, HtmlElement) and sub.tag not in ("ul", "ol", "dl"):
+                        sub_text = (sub.text_content() or "").strip()
+                        if sub_text:
+                            parts.append(sub_text)
+                    if sub.tail and sub.tail.strip():
+                        parts.append(sub.tail.strip())
+                item_text = re.sub(r"\s+", " ", " ".join(parts)).strip()
                 if item_text:
                     items.append(item_text)
+        return items
+
+    @staticmethod
+    def _extract_dl_items(dl_el: HtmlElement) -> list[str]:
+        """Extract dt/dd pairs from a definition list as 'term: definition'."""
+        items: list[str] = []
+        current_dt: str = ""
+        for child in dl_el:
+            if not isinstance(child, HtmlElement):
+                continue
+            text = re.sub(r"\s+", " ", (child.text_content() or "")).strip()
+            if child.tag == "dt":
+                current_dt = text
+            elif child.tag == "dd":
+                if current_dt:
+                    items.append(f"{current_dt}: {text}")
+                else:
+                    items.append(text)
+                current_dt = ""
+        # Leftover dt without dd
+        if current_dt:
+            items.append(current_dt)
         return items
 
     @staticmethod
