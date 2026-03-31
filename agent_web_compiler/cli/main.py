@@ -1118,5 +1118,94 @@ def provenance_trace(query: str, index_path: str) -> None:
         click.echo(json.dumps(trace_data, indent=2, default=str))
 
 
+@cli.group()
+def memory():
+    """Site memory commands."""
+
+
+@memory.command(name="show")
+@click.argument("domain")
+@click.option("--memory-path", default="site_memory.json", help="Site memory file path")
+def memory_show(domain: str, memory_path: str) -> None:
+    """Show learned insights for a domain."""
+    from agent_web_compiler.memory import SiteMemory
+
+    mem = SiteMemory()
+    try:
+        mem.load(memory_path)
+    except FileNotFoundError:
+        console.print(f"[red]Error:[/red] Memory file not found: {memory_path}")
+        sys.exit(1)
+
+    insight = mem.get_insight(domain)
+    if insight is None:
+        console.print(f"[yellow]No insights found for domain: {domain}[/yellow]")
+        sys.exit(0)
+
+    console.print(Panel(f"[bold]{insight.domain}[/bold]", title="Site Insight"))
+
+    table = Table(show_header=False)
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+    table.add_row("Pages Observed", str(insight.pages_observed))
+    table.add_row("Avg Blocks/Page", f"{insight.avg_blocks_per_page:.1f}")
+    table.add_row("Search Available", str(insight.search_available))
+    table.add_row("Download Available", str(insight.download_available))
+    table.add_row("Login Required", str(insight.login_required))
+    table.add_row("Language", insight.content_language or "unknown")
+    table.add_row("Dominant Types", ", ".join(insight.dominant_block_types) or "N/A")
+    console.print(table)
+
+    if insight.entry_points:
+        console.print("\n[bold]Entry Points:[/bold]")
+        for ep in insight.entry_points:
+            console.print(f"  - {ep}")
+
+    if insight.common_actions:
+        console.print("\n[bold]Common Actions:[/bold]")
+        for ca in insight.common_actions:
+            console.print(f"  - {ca.get('role', '?')} (freq={ca.get('frequency', 0):.0%})")
+
+    if insight.template_blocks:
+        console.print(f"\n[bold]Template Blocks:[/bold] {len(insight.template_blocks)} detected")
+
+    console.print()
+
+
+@memory.command(name="stats")
+@click.option("--memory-path", default="site_memory.json", help="Site memory file path")
+def memory_stats(memory_path: str) -> None:
+    """Show site memory statistics."""
+    from agent_web_compiler.memory import SiteMemory
+
+    mem = SiteMemory()
+    try:
+        mem.load(memory_path)
+    except FileNotFoundError:
+        console.print(f"[red]Error:[/red] Memory file not found: {memory_path}")
+        sys.exit(1)
+
+    stats = mem.stats
+    table = Table(title=f"Site Memory: {memory_path}")
+    table.add_column("Metric", style="bold")
+    table.add_column("Count", justify="right")
+    table.add_row("Domains", str(stats["domains"]))
+    table.add_row("Total Pages Observed", str(stats["total_pages_observed"]))
+    table.add_row("Domains with Patterns", str(stats["domains_with_patterns"]))
+    console.print(table)
+
+    if mem.domains:
+        console.print("\n[bold]Domains:[/bold]")
+        for domain in mem.domains:
+            insight = mem.get_insight(domain)
+            if insight:
+                console.print(
+                    f"  - {domain}: {insight.pages_observed} pages, "
+                    f"{len(insight.common_actions)} common actions"
+                )
+
+    console.print()
+
+
 if __name__ == "__main__":
     cli()

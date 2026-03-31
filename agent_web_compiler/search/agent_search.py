@@ -295,6 +295,113 @@ class AgentSearch:
         """
         return self._engine.stats
 
+    # --- Action Graph Integration ---
+
+    def analyze_actions(self, doc: AgentDocument | None = None) -> dict[str, Any]:
+        """Analyze action graph and API candidates for a document or the full index.
+
+        If *doc* is provided, analyzes that single document's actions.
+        Otherwise, aggregates across all indexed actions.
+
+        Returns a dict with keys:
+        - ``action_count``: total actions analyzed
+        - ``action_types``: Counter of action type values
+        - ``action_roles``: Counter of action role values
+        - ``api_candidates``: list of synthesized API candidate dicts
+        - ``has_graph_builder``: whether the actiongraph package is available
+
+        The action graph package is optional. When unavailable, the method
+        still returns basic action statistics from the index.
+        """
+        # Gather actions
+        if doc is not None:
+            actions_list = [
+                {"type": a.type.value if hasattr(a.type, "value") else str(a.type),
+                 "label": a.label,
+                 "role": a.role,
+                 "selector": a.selector}
+                for a in doc.actions
+            ]
+        else:
+            actions_list = [
+                {"type": ar.action_type,
+                 "label": ar.label,
+                 "role": ar.role,
+                 "selector": ar.selector}
+                for ar in self._engine._actions.values()
+            ]
+
+        type_counter: dict[str, int] = {}
+        role_counter: dict[str, int] = {}
+        for a in actions_list:
+            atype = a.get("type", "unknown")
+            type_counter[atype] = type_counter.get(atype, 0) + 1
+            role = a.get("role")
+            if role:
+                role_counter[role] = role_counter.get(role, 0) + 1
+
+        api_candidates = self.get_api_candidates(doc)
+
+        has_graph_builder = False
+        try:
+            from agent_web_compiler.actiongraph import ActionGraphBuilder  # noqa: F401
+            has_graph_builder = True
+        except (ImportError, ModuleNotFoundError):
+            pass
+
+        return {
+            "action_count": len(actions_list),
+            "action_types": type_counter,
+            "action_roles": role_counter,
+            "api_candidates": api_candidates,
+            "has_graph_builder": has_graph_builder,
+        }
+
+    def get_api_candidates(self, doc: AgentDocument | None = None) -> list[dict[str, Any]]:
+        """Get synthesized API candidates from actions.
+
+        Attempts to use the ``actiongraph.APISynthesizer`` if available.
+        Falls back to heuristic extraction of form-submit and search
+        patterns when the package is not installed.
+
+        Args:
+            doc: Optional document to analyze. If ``None``, uses all
+                 indexed actions.
+
+        Returns:
+            A list of dicts, each describing a candidate API endpoint
+            with keys like ``method``, ``label``, ``role``, ``selector``.
+        """
+        # Try the full actiongraph synthesizer first
+        try:
+            from agent_web_compiler.actiongraph import APISynthesizer
+            synthesizer = APISynthesizer()
+            if doc is not None:
+                return synthesizer.synthesize(doc)
+            # No per-index synthesize; fall through to heuristic
+        except (ImportError, ModuleNotFoundError, AttributeError):
+            pass
+
+        # Heuristic fallback: identify submit/search actions as API candidates
+        if doc is not None:
+            raw_actions = doc.actions
+        else:
+            raw_actions = []  # Can't reconstruct Action models from index records
+
+        candidates: list[dict[str, Any]] = []
+        for action in raw_actions:
+            role = action.role or ""
+            atype = action.type.value if hasattr(action.type, "value") else str(action.type)
+            if atype in ("submit", "input") or "search" in role or "submit" in role:
+                candidates.append({
+                    "method": "POST" if atype == "submit" else "GET",
+                    "label": action.label,
+                    "role": role,
+                    "selector": action.selector,
+                    "source": "heuristic",
+                })
+        return candidates
+
     # --- Private helpers ---
 
     def _embed_document(self, doc: AgentDocument) -> None:
