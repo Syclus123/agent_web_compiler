@@ -1046,5 +1046,77 @@ def publish_preview(source: str) -> None:
     console.print()
 
 
+# ---------------------------------------------------------------------------
+# Provenance commands
+# ---------------------------------------------------------------------------
+
+
+@cli.group()
+def provenance():
+    """Provenance and citation commands."""
+
+
+@provenance.command(name="cite")
+@click.argument("query")
+@click.option("--index-path", default="awc_index.json", help="Index file path")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format",
+)
+def provenance_cite(query: str, index_path: str, fmt: str) -> None:
+    """Answer a query with full provenance citations."""
+    from agent_web_compiler.provenance import ProvenanceEngine
+    from agent_web_compiler.search import AgentSearch
+
+    search = AgentSearch()
+    try:
+        search.load(index_path)
+    except FileNotFoundError:
+        console.print(f"[red]Error:[/red] Index file not found: {index_path}")
+        sys.exit(1)
+
+    engine = ProvenanceEngine()
+    result = engine.answer_with_provenance(search, query)
+
+    if fmt == "json":
+        click.echo(json.dumps(result, indent=2, default=str))
+    else:
+        console.print()
+        console.print(result["cited_answer"])
+        console.print()
+
+
+@provenance.command(name="trace")
+@click.argument("query")
+@click.option("--index-path", default="awc_index.json", help="Index file path")
+def provenance_trace(query: str, index_path: str) -> None:
+    """Show the full decision trace for answering a query."""
+    from agent_web_compiler.provenance import ProvenanceEngine
+    from agent_web_compiler.search import AgentSearch
+
+    search = AgentSearch()
+    try:
+        search.load(index_path)
+    except FileNotFoundError:
+        console.print(f"[red]Error:[/red] Index file not found: {index_path}")
+        sys.exit(1)
+
+    engine = ProvenanceEngine()
+    result = engine.answer_with_provenance(search, query)
+
+    # Retrieve the live session for markdown rendering
+    trace_data = result["trace"]
+    session = engine.get_trace(trace_data["session_id"])
+    if session:
+        console.print()
+        console.print(session.to_markdown())
+        console.print()
+    else:
+        click.echo(json.dumps(trace_data, indent=2, default=str))
+
+
 if __name__ == "__main__":
     cli()

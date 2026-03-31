@@ -34,6 +34,7 @@ from agent_web_compiler.api.compile import (
     compile_url,
 )
 from agent_web_compiler.pipeline.builder import PipelineBuilder
+from agent_web_compiler.provenance.engine import ProvenanceEngine
 from agent_web_compiler.publisher.site_publisher import SitePublisher
 from agent_web_compiler.search.agent_search import AgentSearch
 
@@ -47,6 +48,8 @@ __all__ = [
     "PipelineBuilder",
     # Search (primary entry point)
     "AgentSearch",
+    # Provenance
+    "ProvenanceEngine",
     # Publisher (site-level file generation)
     "SitePublisher",
     # Version
