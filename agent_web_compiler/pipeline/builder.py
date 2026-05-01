@@ -93,6 +93,11 @@ class PipelineBuilder:
         self._entity_extractor: Any = None
         self._aligner: Any = None
         self._validator: Any = None
+        # Fetcher is used when compiling a URL via the builder. It is *not* part
+        # of the canonical Normalize→Segment→Extract pipeline — the pipeline
+        # itself receives pre-fetched HTML — but the builder exposes it so
+        # callers can say "build a pipeline that uses the user's real Chrome".
+        self._fetcher: Any = None
         self._hooks = PipelineHooks()
 
         # Skip flags
@@ -132,6 +137,90 @@ class PipelineBuilder:
     def with_validator(self, validator: Any) -> PipelineBuilder:
         """Replace the document validator."""
         self._validator = validator
+        return self
+
+    def with_skill_hints(
+        self,
+        url_or_domain: str,
+        *,
+        skills_dir: str | None = None,
+        boost: float = 0.25,
+    ) -> PipelineBuilder:
+        """Load BH ``domain-skills`` markdown for *url_or_domain* and register an
+        ``after_compile`` hook that boosts salience for DOM paths matching any
+        of the curated selectors.
+
+        The boost is applied **after** AWC's own salience scorer runs, so the
+        BH-curated signal sticks rather than being overwritten by the default
+        scorer. A BH-curated selector is a strong signal that "this is real
+        content on this site" — bumping salience aligns compilation with
+        human-authored expectations.
+
+        Args:
+            url_or_domain: A URL or bare hostname — we extract the domain
+                and resolve it against ``skills_dir``.
+            skills_dir: Path to an ``agent-workspace/domain-skills/`` directory
+                (a clone of ``browser-use/browser-harness`` works out of the
+                box). If ``None`` we try the ``AWC_BH_SKILLS_DIR`` env var
+                and silently no-op otherwise — keeping the builder usable
+                on machines without a BH checkout.
+            boost: Amount to add to ``block.importance`` on a match.
+
+        Returns ``self`` so it chains with the rest of the builder.
+        """
+        import os
+
+        from agent_web_compiler.runtime.browser_harness.skill_hints import (
+            load_skill_hints,
+            skill_hints_hook,
+        )
+
+        resolved_dir = skills_dir or os.environ.get("AWC_BH_SKILLS_DIR")
+        if not resolved_dir:
+            return self  # best-effort: silently skip when no dir configured
+        hints = load_skill_hints(url_or_domain, skills_dir=resolved_dir)
+        if hints.is_empty():
+            return self
+        self._hooks.after_compile.append(skill_hints_hook(hints, boost=boost))
+        return self
+
+    def with_fetcher(self, fetcher: Any, **kwargs: Any) -> PipelineBuilder:
+        """Set the fetcher used by :meth:`CustomPipeline.compile_url`.
+
+        ``fetcher`` may be either:
+
+        - a **string short-name** resolved by
+          :func:`agent_web_compiler.sources.resolve_fetcher` — recognised values
+          are ``"http"``, ``"playwright"``, ``"browser_harness"`` (alias
+          ``"bh"``). Any extra kwargs are forwarded to the fetcher constructor.
+        - a **fetcher instance** — anything exposing a ``fetch_sync(url,
+          config) -> FetchResult`` method. Passed through as-is.
+
+        Example — route all fetches through the user's real Chrome via
+        browser-harness::
+
+            pipeline = (
+                PipelineBuilder()
+                .with_fetcher("browser_harness", bu_name="awc",
+                              wait_after_load_ms=2000)
+                .build()
+            )
+            doc = pipeline.compile_url("https://app.linkedin.com/messaging")
+        """
+        if isinstance(fetcher, str):
+            from agent_web_compiler.sources import resolve_fetcher
+
+            self._fetcher = resolve_fetcher(fetcher, **kwargs)
+        else:
+            if kwargs:
+                # Silently accepting kwargs alongside a pre-built instance would
+                # hide bugs (caller thinks they set ``bu_name`` but the instance
+                # ignores it). Surface it loudly.
+                raise TypeError(
+                    "with_fetcher(instance) takes no extra kwargs; got: "
+                    f"{sorted(kwargs.keys())}"
+                )
+            self._fetcher = fetcher
         return self
 
     # --- Skip stages ---
@@ -205,6 +294,7 @@ class PipelineBuilder:
             entity_extractor=self._entity_extractor,
             aligner=self._aligner,
             validator=self._validator,
+            fetcher=self._fetcher,
             hooks=self._hooks,
             skip_actions=self._skip_actions,
             skip_salience=self._skip_salience,
@@ -230,6 +320,7 @@ class CustomPipeline:
         entity_extractor: Any = None,
         aligner: Any = None,
         validator: Any = None,
+        fetcher: Any = None,
         hooks: PipelineHooks | None = None,
         skip_actions: bool = False,
         skip_salience: bool = False,
@@ -244,6 +335,7 @@ class CustomPipeline:
         self._entity_extractor = entity_extractor
         self._aligner = aligner
         self._validator = validator
+        self._fetcher = fetcher
         self._hooks = hooks or PipelineHooks()
         self._skip_actions = skip_actions
         self._skip_salience = skip_salience
@@ -436,3 +528,61 @@ class CustomPipeline:
             if block.type == BlockType.HEADING:
                 return block.text
         return ""
+
+    # ------------------------------------------------------------------
+    # URL entry point — available when a fetcher was configured
+    # ------------------------------------------------------------------
+
+    def compile_url(
+        self,
+        url: str,
+        *,
+        config: CompileConfig | None = None,
+    ) -> AgentDocument:
+        """Fetch ``url`` with the configured fetcher and compile it.
+
+        The fetcher is selected in this order:
+
+        1. The instance or short-name passed to :meth:`PipelineBuilder.with_fetcher`
+           (this is the point of the builder).
+        2. A default :class:`HTTPFetcher` — keeps backwards compatibility with
+           callers that build a pipeline without touching fetchers.
+
+        Rendering metadata returned by the fetcher (screenshots, viewport,
+        ``renderer`` tag) is threaded into ``doc.debug`` under
+        ``fetch_metadata`` so downstream evidence/provenance code can find it
+        without re-fetching.
+        """
+        if config is None:
+            config = CompileConfig()
+
+        fetcher = self._fetcher
+        if fetcher is None:
+            # Default: vanilla HTTP. This keeps ``PipelineBuilder().build().compile_url(...)``
+            # working without requiring users to pick a fetcher explicitly.
+            from agent_web_compiler.sources.http_fetcher import HTTPFetcher
+
+            fetcher = HTTPFetcher()
+
+        result = fetcher.fetch_sync(url, config)
+        content = result.content
+        if isinstance(content, bytes):
+            content = content.decode("utf-8", errors="replace")
+
+        doc = self.compile(content, source_url=result.url or url, config=config)
+
+        # Surface fetcher-provided metadata so provenance/debug paths can find
+        # it. We never overwrite existing debug keys.
+        if result.metadata:
+            debug_meta = doc.debug.setdefault("fetch_metadata", {}) if isinstance(doc.debug, dict) else None
+            if debug_meta is not None:
+                # Exclude giant payloads (screenshot bytes) from the debug dict —
+                # keep them available on the FetchResult but out of the JSON-safe
+                # document debug bundle.
+                for k, v in result.metadata.items():
+                    if k == "screenshot_png":
+                        # record presence + size only
+                        debug_meta[k] = {"bytes": len(v) if isinstance(v, (bytes, bytearray)) else 0}
+                    else:
+                        debug_meta[k] = v
+        return doc

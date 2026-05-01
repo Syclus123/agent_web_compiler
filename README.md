@@ -84,6 +84,55 @@ publisher.generate_all("output/")
 # → llms.txt, agent.json, content.json, actions.json, agent-sitemap.xml, agent-feed.json
 ```
 
+### Drive a real browser with [browser-harness](https://github.com/browser-use/browser-harness) (new)
+
+AWC ships a **bridge** to browser-harness — a minimal CDP helper that attaches
+to the user's already-running Chrome. This unlocks three things the default
+pipeline can't do alone:
+
+1. **Fetch pages from your logged-in session** — SaaS, LinkedIn, Gmail all
+   Just Work; no stale-cookie dance.
+2. **Close the loop from compile → plan → act** — `LiveRuntime` turns a
+   URL + a natural-language task into real clicks, with every step producing
+   an `Evidence` record.
+3. **Auto-generate BH domain-skills** — compile a site once, emit a
+   PR-ready `agent-workspace/domain-skills/<site>/<task>.md`.
+
+```bash
+pip install "agent-web-compiler[harness]"
+# and follow the BH setup prompt:
+#   https://github.com/browser-use/browser-harness#setup-prompt
+```
+
+```python
+# Fetch using your real Chrome
+from agent_web_compiler import compile_url
+doc = compile_url("https://app.linkedin.com/in/me", fetcher="browser_harness")
+
+# Compile → plan → act, all in one shot
+from agent_web_compiler import LiveRuntime
+rt = LiveRuntime.from_url("https://github.com/browser-use/browser-harness")
+outcome = rt.run("star the repository", max_actions=1)
+#   → outcome.evidence is an Evidence record with screenshot + transition
+
+# Contribute a BH skill back upstream
+from agent_web_compiler import DomainSkillPublisher
+skill = DomainSkillPublisher().generate_from_document(doc, task="scraping")
+skill.write_to_repo("~/code/browser-harness")
+# → agent-workspace/domain-skills/linkedin/scraping.md, ready for a PR
+```
+
+```bash
+# CLI equivalents
+awc compile https://app.linkedin.com/in/me --fetcher browser_harness
+awc live "reply to Alice" --on https://app.linkedin.com/messaging
+awc publish bh-skill https://docs.stripe.com/api --out ~/code/browser-harness
+```
+
+See [`docs/integration-with-browser-harness.md`](docs/integration-with-browser-harness.md)
+for the full design doc and [`docs/fetchers/browser-harness.md`](docs/fetchers/browser-harness.md)
+for the fetcher reference.
+
 ### Compile only
 
 ```python
@@ -181,13 +230,13 @@ MCP: `compile_url` `compile_html` `compile_file` `get_blocks` `get_actions` `get
 
 ## Architecture
 
-**23 packages · 77 modules:**
+**24 packages · 78+ modules:**
 
 ```
 agent_web_compiler/
 ├── core/           Schemas, interfaces, errors (7)
 ├── pipeline/       Compilers + cache + extensible builder (8)
-├── sources/        HTTP, Playwright, file reader, crawler (4)
+├── sources/        HTTP, Playwright, browser-harness, file reader, crawler (5)
 ├── normalizers/    Boilerplate removal, site profiles (2)
 ├── segmenters/     Blocking, salience, query filter (3)
 ├── extractors/     Actions, entities, assets, nav graph (4)
@@ -198,7 +247,10 @@ agent_web_compiler/
 ├── provenance/     Evidence, citations, snapshots, traces, engine (5)
 ├── actiongraph/    State machine, API synthesis, hybrid executor (4)
 ├── memory/         Site-level learning across visits (1)
-├── publisher/      llms.txt, agent/content/actions.json, sitemap, feed (6)
+├── publisher/      llms.txt, agent/content/actions.json, sitemap, feed,
+│                   bh-skill markdown (7)
+├── runtime/        Live execution backends (optional extras)
+│   └── browser_harness/   LiveActionExecutor, LiveRuntime, evidence_adapter
 ├── adapters/       OpenAI, Anthropic, Browser Use, LangChain (4)
 ├── middleware/     Browser agent middleware (1)
 ├── plugins/        Registry + protocols (2)
@@ -213,7 +265,8 @@ agent_web_compiler/
 ```bash
 pip install agent-web-compiler                 # Core
 pip install "agent-web-compiler[pdf]"          # + PDF
-pip install "agent-web-compiler[browser]"      # + Playwright
+pip install "agent-web-compiler[browser]"      # + Playwright (isolated Chromium)
+pip install "agent-web-compiler[harness]"      # + browser-harness (your real Chrome)
 pip install "agent-web-compiler[serve]"        # + MCP + REST
 pip install "agent-web-compiler[all]"          # Everything
 ```
@@ -230,12 +283,13 @@ Python 3.9+ · From source: `pip install -e ".[dev]" && pytest` (1,279 tests, ~4
 
 ## Related Projects
 
-| Project | AWC adds |
+| Project | AWC adds / integration |
 |---|---|
 | [Firecrawl](https://github.com/mendableai/firecrawl) | Search, provenance, API synthesis, publish |
 | [Jina Reader](https://github.com/jina-ai/reader) | Typed blocks, action graph, evidence chains |
 | [Docling](https://github.com/DS4SD/docling) | Web + search + provenance + publish in one stack |
 | [Browser Use](https://github.com/browser-use/browser-use) | Pre-compiled affordances, API-first execution, site memory |
+| [**browser-harness**](https://github.com/browser-use/browser-harness) | **First-class bridge**: fetch via real Chrome, `LiveRuntime` execution, auto-generated domain-skills |
 | [llms.txt](https://llmstxt.org/) | Full agent manifest + actions + delta feeds |
 
 ---

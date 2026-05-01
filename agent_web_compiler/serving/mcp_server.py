@@ -299,6 +299,101 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["query"],
         },
     },
+    {
+        "name": "live_run",
+        "description": (
+            "Compile a URL via browser-harness, plan actions for a natural-language "
+            "task, and execute them against the user's real Chrome. Returns an outcome "
+            "with per-action success status, evidence records, and a screenshot path. "
+            "Requires the 'harness' extra and a running browser-harness daemon."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "The natural-language task to perform on the page.",
+                },
+                "url": {
+                    "type": "string",
+                    "description": "The URL to compile and act upon.",
+                },
+                "bu_name": {
+                    "type": "string",
+                    "default": "awc",
+                    "description": "browser-harness session scope (BU_NAME env var).",
+                },
+                "max_actions": {
+                    "type": "integer",
+                    "default": 1,
+                    "description": "Maximum number of actions to attempt for this task.",
+                },
+                "auto_confirm": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Auto-approve actions that would otherwise require confirmation.",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Compile + plan only; skip execution.",
+                },
+                "fetcher": {
+                    "type": "string",
+                    "enum": ["http", "playwright", "browser_harness"],
+                    "default": "browser_harness",
+                    "description": (
+                        "Fetcher backend used to compile the initial page. Defaults "
+                        "to browser_harness so the compile step reuses the same "
+                        "session that will later drive the page."
+                    ),
+                },
+            },
+            "required": ["task", "url"],
+        },
+    },
+    {
+        "name": "publish_bh_skill",
+        "description": (
+            "Compile a URL and render a browser-harness-compatible domain-skill "
+            "markdown. Returns the rendered text (and optionally writes it under "
+            "a local BH repo clone at agent-workspace/domain-skills/<site>/<task>.md)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "URL to compile.",
+                },
+                "task": {
+                    "type": "string",
+                    "default": "scraping",
+                    "description": "BH task filename stem (scraping/upload/...).",
+                },
+                "out_repo": {
+                    "type": "string",
+                    "description": (
+                        "Optional path to a local browser-harness repo clone. "
+                        "When provided, the skill markdown is written under "
+                        "<out_repo>/agent-workspace/domain-skills/<site>/<task>.md."
+                    ),
+                },
+                "overwrite": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Overwrite an existing skill file.",
+                },
+                "fetcher": {
+                    "type": "string",
+                    "enum": ["http", "playwright", "browser_harness"],
+                    "default": "http",
+                    "description": "Fetcher backend to use for the URL compile step.",
+                },
+            },
+            "required": ["url"],
+        },
+    },
 ]
 
 
@@ -500,6 +595,90 @@ def _handle_plan(arguments: dict[str, Any]) -> str:
     return json.dumps(result.to_dict(), indent=2, default=str)
 
 
+def _handle_live_run(arguments: dict[str, Any]) -> str:
+    """Handle the live_run tool — end-to-end Compile → Plan → Act via BH.
+
+    Requires the ``harness`` optional extra and a running BH daemon. Errors
+    are surfaced via :class:`CompilerError`/:class:`FetchError` so the MCP
+    error-code mapper in :func:`create_server` can translate them for the
+    caller.
+    """
+    task = arguments.get("task")
+    url = arguments.get("url")
+    if not task or not isinstance(task, str):
+        raise ValueError("Required parameter 'task' must be a non-empty string.")
+    if not url or not isinstance(url, str):
+        raise ValueError("Required parameter 'url' must be a non-empty string.")
+
+    bu_name = arguments.get("bu_name", "awc")
+    max_actions = int(arguments.get("max_actions", 1) or 1)
+    auto_confirm = bool(arguments.get("auto_confirm", False))
+    dry_run = bool(arguments.get("dry_run", False))
+    fetcher = arguments.get("fetcher", "browser_harness")
+
+    from agent_web_compiler.runtime.browser_harness import (
+        LiveActionExecutor,
+        LiveRuntime,
+    )
+
+    executor = LiveActionExecutor(bu_name=bu_name, auto_confirm=auto_confirm)
+    runtime = LiveRuntime.from_url(url, executor=executor, fetcher=fetcher)
+
+    if dry_run:
+        actions = runtime._select_actions(task, max_actions=max_actions)  # noqa: SLF001
+        return json.dumps(
+            {
+                "dry_run": True,
+                "url": url,
+                "task": task,
+                "planned_actions": [
+                    {
+                        "id": a.id,
+                        "type": a.type.value,
+                        "label": a.label,
+                        "selector": a.selector,
+                    }
+                    for a in actions
+                ],
+            },
+            indent=2,
+            default=str,
+        )
+
+    outcome = runtime.run(task, max_actions=max_actions)
+    return json.dumps(outcome.to_dict(), indent=2, default=str, ensure_ascii=False)
+
+
+def _handle_publish_bh_skill(arguments: dict[str, Any]) -> str:
+    """Handle the publish_bh_skill tool — render a BH domain-skill markdown."""
+    url = arguments.get("url")
+    if not url or not isinstance(url, str):
+        raise ValueError("Required parameter 'url' must be a non-empty string.")
+    task = arguments.get("task", "scraping")
+    out_repo = arguments.get("out_repo")
+    overwrite = bool(arguments.get("overwrite", False))
+    fetcher = arguments.get("fetcher", "http")
+
+    from agent_web_compiler.api.compile import compile_url
+    from agent_web_compiler.publisher import DomainSkillPublisher
+
+    doc = compile_url(url, fetcher=fetcher)
+    skill = DomainSkillPublisher().generate_from_document(doc, task=task)
+
+    result: dict[str, Any] = {
+        "domain": skill.domain,
+        "task": skill.task,
+        "filename": skill.filename(),
+        "api_count": skill.api_count,
+        "selector_count": skill.selector_count,
+        "markdown": skill.markdown,
+    }
+    if out_repo:
+        target = skill.write_to_repo(out_repo, overwrite=overwrite)
+        result["written_to"] = str(target)
+    return json.dumps(result, indent=2, default=str, ensure_ascii=False)
+
+
 _TOOL_HANDLERS: dict[str, Any] = {
     "compile_url": _handle_compile_url,
     "compile_html": _handle_compile_html,
@@ -511,6 +690,8 @@ _TOOL_HANDLERS: dict[str, Any] = {
     "search": _handle_search,
     "answer": _handle_answer,
     "plan": _handle_plan,
+    "live_run": _handle_live_run,
+    "publish_bh_skill": _handle_publish_bh_skill,
 }
 
 

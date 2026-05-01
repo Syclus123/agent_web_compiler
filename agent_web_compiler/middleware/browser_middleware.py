@@ -6,18 +6,25 @@ Sits between a browser automation tool and an LLM, providing:
 2. Provide structured representation to the LLM
 3. Only fall back to raw screenshot/DOM when compilation is uncertain
 4. Track page history as a sequence of AgentDocuments
+5. Optional: close the loop by executing actions against a real browser
+   (via :class:`~agent_web_compiler.runtime.browser_harness.LiveActionExecutor`).
 """
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from agent_web_compiler.api.compile import compile_html
 from agent_web_compiler.core.action import Action, ActionType
 from agent_web_compiler.core.config import CompileConfig
 from agent_web_compiler.core.document import AgentDocument
+
+if TYPE_CHECKING:  # pragma: no cover
+    from agent_web_compiler.runtime.browser_harness.live_executor import (
+        LiveActionExecutor,
+    )
 
 # Confidence threshold below which we suggest screenshot fallback
 _DEFAULT_FALLBACK_THRESHOLD = 0.5
@@ -116,11 +123,18 @@ class BrowserMiddleware:
         config: CompileConfig | None = None,
         history_size: int = 10,
         fallback_threshold: float = _DEFAULT_FALLBACK_THRESHOLD,
+        executor: LiveActionExecutor | None = None,
     ) -> None:
         self.config = config or CompileConfig()
         self.history: list[PageVisit] = []
         self.history_size = history_size
         self.fallback_threshold = fallback_threshold
+        # Optional: when set, ``execute_action`` will actually drive the
+        # browser via the given executor (typically a
+        # :class:`~agent_web_compiler.runtime.browser_harness.LiveActionExecutor`).
+        # If None, ``execute_action`` degrades to the old ``translate_action``
+        # behaviour (returns the command dict; caller drives the browser).
+        self.executor = executor
         self._current_doc: AgentDocument | None = None
 
     # ── Page lifecycle ───────────────────────────────────────────────
@@ -187,6 +201,55 @@ class BrowserMiddleware:
             )
 
         return self._action_to_browser_command(action)
+
+    # ── Live execution (optional) ───────────────────────────────────
+
+    def execute_action(self, action_id: str) -> dict[str, Any]:
+        """Execute the action *now* using the configured executor.
+
+        - If no executor was provided at construction time, this degrades to
+          :meth:`translate_action` — i.e. it returns the browser command dict
+          and expects the caller to run it elsewhere. This preserves backwards
+          compatibility for existing users who treat the middleware as a
+          planner only.
+        - If a :class:`LiveActionExecutor` is attached, the action is
+          dispatched through the full hybrid decision pipeline (API first,
+          browser fallback) and a :class:`LiveExecutionResult`-shaped dict
+          is returned.
+
+        Returns:
+            A dict. When running live, it has the shape of
+            :meth:`LiveExecutionResult.to_dict` (keys: ``action_id``,
+            ``mode_used``, ``success``, optional ``transition``,
+            ``network_calls``, ``screenshot_path``, ``error``). When running
+            in plan-only mode, the shape is that of
+            :meth:`_action_to_browser_command`.
+        """
+        if self._current_doc is None:
+            raise ValueError("No page loaded — call on_page_load first.")
+
+        action = self._find_action(action_id)
+        if action is None:
+            raise ValueError(
+                f"Action '{action_id}' not found in current page. "
+                f"Available: {[a.id for a in self._current_doc.actions]}"
+            )
+
+        if self.executor is None:
+            # Plan-only mode — legacy behaviour.
+            return self._action_to_browser_command(action)
+
+        # Build a one-off decision that routes through the executor's full
+        # API-first / browser-fallback logic. We defer to HybridExecutor for
+        # the actual decision (which knows how to match API candidates) so
+        # middleware doesn't duplicate that logic.
+        from agent_web_compiler.actiongraph.api_synthesizer import APISynthesizer
+        from agent_web_compiler.actiongraph.hybrid_executor import HybridExecutor
+
+        candidates = APISynthesizer().synthesize_from_document(self._current_doc)
+        decision = HybridExecutor().decide(action, candidates)
+        result = self.executor.execute(decision, action, doc=self._current_doc)
+        return result.to_dict()
 
     # ── History ──────────────────────────────────────────────────────
 

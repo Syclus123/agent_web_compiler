@@ -90,6 +90,56 @@ class HealthResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Live runtime / BH-skill request models
+# ---------------------------------------------------------------------------
+
+
+class LiveRunRequest(BaseModel):
+    """Request body for ``POST /v1/live/run``.
+
+    Drives :class:`LiveRuntime` through browser-harness: compile the URL,
+    pick the best-matching actions for ``task``, execute them via BH, and
+    return the outcome with evidence.
+    """
+
+    url: str = Field(..., description="URL to compile and act on")
+    task: str = Field(..., description="Natural-language task")
+    bu_name: str = Field("awc", description="browser-harness session scope (BU_NAME)")
+    max_actions: int = Field(1, ge=1, description="Max actions to attempt")
+    auto_confirm: bool = Field(
+        False, description="Auto-approve confirm-required actions"
+    )
+    dry_run: bool = Field(False, description="Compile + plan only; no execution")
+    fetcher: str = Field(
+        "browser_harness",
+        description=(
+            "Fetcher backend used to compile the initial page. Defaults to "
+            "browser_harness so the compile step and the live execution share "
+            "the same session."
+        ),
+    )
+
+
+class PublishBHSkillRequest(BaseModel):
+    """Request body for ``POST /v1/publish/bh-skill``."""
+
+    url: str = Field(..., description="URL to compile")
+    task: str = Field("scraping", description="BH task filename stem")
+    fetcher: str = Field(
+        "http",
+        description="Fetcher backend: http, playwright, or browser_harness",
+    )
+    out_repo: str | None = Field(
+        None,
+        description=(
+            "Optional local BH repo path. When set, the skill is written under "
+            "<out_repo>/agent-workspace/domain-skills/<site>/<task>.md."
+        ),
+    )
+    overwrite: bool = Field(False, description="Overwrite existing skill file")
+
+
+# ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
@@ -406,5 +456,96 @@ def create_app() -> FastAPI:
     def schema_endpoint() -> dict[str, Any]:
         """Return the AgentDocument JSON Schema."""
         return AgentDocument.model_json_schema()
+
+    # ------------------------------------------------------------------
+    # POST /v1/live/run — compile + plan + act via browser-harness
+    # ------------------------------------------------------------------
+
+    @app.post("/v1/live/run", response_model=None)
+    def live_run_endpoint(req: LiveRunRequest) -> JSONResponse:
+        """Run a task against a URL with browser-harness as the executor.
+
+        Requires the ``harness`` optional extra and a running BH daemon.
+        """
+        try:
+            from agent_web_compiler.runtime.browser_harness import (
+                LiveActionExecutor,
+                LiveRuntime,
+            )
+        except ImportError as e:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "browser-harness runtime is not available. "
+                    "Install with: pip install 'agent-web-compiler[harness]'. "
+                    f"Details: {e}"
+                ),
+            ) from e
+
+        try:
+            executor = LiveActionExecutor(
+                bu_name=req.bu_name, auto_confirm=req.auto_confirm
+            )
+            runtime = LiveRuntime.from_url(req.url, executor=executor, fetcher=req.fetcher)
+        except CompilerError as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        except FetchError as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+
+        if req.dry_run:
+            actions = runtime._select_actions(  # noqa: SLF001 — purpose-built
+                req.task, max_actions=req.max_actions
+            )
+            return JSONResponse(
+                content={
+                    "dry_run": True,
+                    "url": req.url,
+                    "task": req.task,
+                    "planned_actions": [
+                        {
+                            "id": a.id,
+                            "type": a.type.value,
+                            "label": a.label,
+                            "selector": a.selector,
+                        }
+                        for a in actions
+                    ],
+                }
+            )
+
+        outcome = runtime.run(req.task, max_actions=req.max_actions)
+        return JSONResponse(content=outcome.to_dict())
+
+    # ------------------------------------------------------------------
+    # POST /v1/publish/bh-skill — render a BH domain-skill from a URL
+    # ------------------------------------------------------------------
+
+    @app.post("/v1/publish/bh-skill", response_model=None)
+    def publish_bh_skill_endpoint(req: PublishBHSkillRequest) -> JSONResponse:
+        """Render a browser-harness-compatible domain-skill markdown."""
+        from agent_web_compiler.api.compile import compile_url
+        from agent_web_compiler.publisher import DomainSkillPublisher
+
+        try:
+            doc = compile_url(req.url, fetcher=req.fetcher)
+        except (CompilerError, FetchError) as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+
+        skill = DomainSkillPublisher().generate_from_document(doc, task=req.task)
+        payload: dict[str, Any] = {
+            "domain": skill.domain,
+            "task": skill.task,
+            "filename": skill.filename(),
+            "api_count": skill.api_count,
+            "selector_count": skill.selector_count,
+            "markdown": skill.markdown,
+        }
+        if req.out_repo:
+            try:
+                target = skill.write_to_repo(req.out_repo, overwrite=req.overwrite)
+            except FileExistsError as e:
+                raise HTTPException(status_code=409, detail=str(e)) from e
+            payload["written_to"] = str(target)
+        return JSONResponse(content=payload)
 
     return app

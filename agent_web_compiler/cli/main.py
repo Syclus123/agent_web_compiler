@@ -40,6 +40,132 @@ def interactive() -> None:
     repl.run()
 
 
+# ---------------------------------------------------------------------------
+# Live runtime (browser-harness bridge)
+# ---------------------------------------------------------------------------
+
+
+@cli.command(name="live")
+@click.argument("task")
+@click.option(
+    "--on",
+    "on_url",
+    required=True,
+    help="URL to compile and act on (e.g. https://github.com/browser-use/browser-harness).",
+)
+@click.option(
+    "--bu-name",
+    default="awc",
+    help="browser-harness session scope (BU_NAME env var).",
+)
+@click.option(
+    "--max-actions",
+    default=1,
+    type=int,
+    help="Maximum number of actions to attempt for this task.",
+)
+@click.option(
+    "--auto-confirm",
+    is_flag=True,
+    help="Automatically approve actions that would otherwise require confirmation (write / auth-required).",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Compile + plan only — skip the actual live execution.",
+)
+@click.option(
+    "--fetcher",
+    type=click.Choice(["http", "playwright", "browser_harness"]),
+    default="browser_harness",
+    help="Fetcher used to compile the page. Defaults to 'browser_harness' so compile + execute share the same session.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format.",
+)
+def live(
+    task: str,
+    on_url: str,
+    bu_name: str,
+    max_actions: int,
+    auto_confirm: bool,
+    dry_run: bool,
+    fetcher: str,
+    output_format: str,
+) -> None:
+    """Compile a URL, plan actions for a task, and execute them via browser-harness.
+
+    Requires ``pip install "agent-web-compiler[harness]"`` and a running
+    browser-harness daemon (see the BH install guide).
+
+    Example::
+
+        awc live "star the repository" --on https://github.com/browser-use/browser-harness --max-actions 1
+    """
+    try:
+        from agent_web_compiler.runtime.browser_harness import (
+            LiveActionExecutor,
+            LiveRuntime,
+        )
+    except ImportError as e:
+        console.print(
+            "[red]Error:[/red] Failed to import browser-harness runtime: "
+            f"{e}\n"
+            "Install the harness extra: "
+            "pip install 'agent-web-compiler[harness]'"
+        )
+        sys.exit(1)
+
+    console.print(f"\n[bold blue]⚡ Live:[/bold blue] {task}")
+    console.print(f"  [dim]on {on_url} (bu_name={bu_name}, fetcher={fetcher})[/dim]\n")
+
+    try:
+        executor = LiveActionExecutor(bu_name=bu_name, auto_confirm=auto_confirm)
+        runtime = LiveRuntime.from_url(on_url, executor=executor, fetcher=fetcher)
+    except Exception as e:
+        console.print(f"[red]Error during compile/connect:[/red] {e}")
+        sys.exit(1)
+
+    if dry_run:
+        actions = runtime._select_actions(task, max_actions=max_actions)  # noqa: SLF001 — deliberate
+        console.print(f"[yellow]--dry-run:[/yellow] would execute {len(actions)} action(s):")
+        for a in actions:
+            console.print(f"  - [{a.type.value}] {a.label} → {a.selector}")
+        console.print()
+        return
+
+    try:
+        outcome = runtime.run(task, max_actions=max_actions)
+    except Exception as e:
+        console.print(f"[red]Error during execution:[/red] {e}")
+        sys.exit(1)
+
+    if output_format == "json":
+        click.echo(json.dumps(outcome.to_dict(), indent=2, default=str))
+        return
+
+    status = "[green]✓ SUCCESS[/green]" if outcome.success else "[red]✗ FAILED[/red]"
+    console.print(f"{status} — {len(outcome.results)} action(s), {len(outcome.evidence)} evidence record(s)\n")
+    for i, r in enumerate(outcome.results, 1):
+        label = next((a.label for a in outcome.actions if a.id == r.action_id), r.action_id)
+        mark = "[green]✓[/green]" if r.success else "[red]✗[/red]"
+        console.print(f"  {mark} {i}. [{r.mode_used}] {label}")
+        if r.error:
+            console.print(f"      [dim]{r.error}[/dim]")
+        if r.transition:
+            console.print(
+                f"      [dim]{r.transition.effect_type} "
+                f"(dom_changed={r.transition.dom_changed}, url_changed={r.transition.url_changed})[/dim]"
+            )
+        if r.screenshot_path:
+            console.print(f"      [dim]screenshot: {r.screenshot_path}[/dim]")
+    console.print()
+
+
 @cli.command()
 @click.argument("sources", nargs=-1, required=True)
 @click.option("-o", "--output", type=click.Path(), default=None, help="Output directory or file")
@@ -55,6 +181,12 @@ def interactive() -> None:
     default="off",
     help="Browser rendering mode",
 )
+@click.option(
+    "--fetcher",
+    type=click.Choice(["http", "playwright", "browser_harness"]),
+    default="http",
+    help="Fetcher backend for URLs. 'browser_harness' drives your real Chrome via browser-harness.",
+)
 @click.option("--actions/--no-actions", default=True, help="Extract actions")
 @click.option("--provenance/--no-provenance", default=True, help="Include provenance")
 @click.option("--debug/--no-debug", default=False, help="Include debug metadata")
@@ -65,6 +197,7 @@ def compile(
     output: str | None,
     mode: str,
     render: str,
+    fetcher: str,
     actions: bool,
     provenance: bool,
     debug: bool,
@@ -94,6 +227,8 @@ def compile(
     # Single source mode
     source = sources[0]
     console.print(f"\n[bold blue]⚡ Compiling:[/bold blue] {source}")
+    if fetcher != "http":
+        console.print(f"  [dim]fetcher: {fetcher}[/dim]")
     start = time.perf_counter()
 
     try:
@@ -105,7 +240,7 @@ def compile(
         elif source.startswith(("http://", "https://")):
             from agent_web_compiler.api.compile import compile_url
 
-            doc = compile_url(source, config=config)
+            doc = compile_url(source, config=config, fetcher=fetcher)
         else:
             console.print(f"[red]Error:[/red] '{source}' is not a valid URL or file path")
             sys.exit(1)
@@ -986,6 +1121,111 @@ def publish_files(
     console.print(f"\n[bold green]✓ Generated {len(files)} files in {output}/[/bold green]")
     for fname in sorted(files):
         console.print(f"  [green]✓[/green] {fname}")
+    console.print()
+
+
+@publish.command(name="bh-skill")
+@click.argument("source")
+@click.option(
+    "--out",
+    "out_repo",
+    type=click.Path(file_okay=False),
+    required=True,
+    help="Path to a local browser-harness repo clone — the skill is written under "
+    "``<out>/agent-workspace/domain-skills/<site>/<task>.md``.",
+)
+@click.option(
+    "--task",
+    default="scraping",
+    help="BH task filename stem (e.g. 'scraping', 'upload', 'repo-actions').",
+)
+@click.option(
+    "--fetcher",
+    type=click.Choice(["http", "playwright", "browser_harness"]),
+    default="http",
+    help="Fetcher to use when SOURCE is a URL.",
+)
+@click.option(
+    "--overwrite/--no-overwrite",
+    default=False,
+    help="Overwrite an existing skill file in the BH repo.",
+)
+@click.option(
+    "--stdout",
+    is_flag=True,
+    help="Print the generated markdown to stdout instead of writing it.",
+)
+def publish_bh_skill(
+    source: str,
+    out_repo: str,
+    task: str,
+    fetcher: str,
+    overwrite: bool,
+    stdout: bool,
+) -> None:
+    """Generate a browser-harness domain-skill markdown from one URL or file.
+
+    The output mirrors the layout of browser-use/browser-harness's
+    ``agent-workspace/domain-skills/<site>/<task>.md`` convention, ready for
+    a PR.
+
+    Example::
+
+        awc publish bh-skill https://github.com/browser-use/browser-harness \\
+            --out ~/code/browser-harness --task scraping
+    """
+    from agent_web_compiler.publisher import DomainSkillPublisher
+
+    console.print(f"\n[bold blue]⚡ Generating BH skill:[/bold blue] {source}")
+    console.print(f"  [dim]task={task} fetcher={fetcher}[/dim]")
+
+    # Compile input.
+    try:
+        src_path = Path(source)
+        if src_path.exists():
+            from agent_web_compiler.api.compile import compile_file
+
+            doc = compile_file(source)
+        elif source.startswith(("http://", "https://")):
+            from agent_web_compiler.api.compile import compile_url
+
+            doc = compile_url(source, fetcher=fetcher)
+        else:
+            console.print(f"[red]Error:[/red] '{source}' is not a valid URL or file path")
+            sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error during compile:[/red] {e}")
+        sys.exit(1)
+
+    publisher = DomainSkillPublisher()
+    skill = publisher.generate_from_document(doc, task=task)
+
+    if stdout:
+        click.echo(skill.markdown)
+        return
+
+    try:
+        target = skill.write_to_repo(out_repo, overwrite=overwrite)
+    except FileExistsError:
+        console.print(
+            f"[red]Error:[/red] {skill.site_dir(out_repo) / skill.filename()} "
+            "already exists. Re-run with --overwrite."
+        )
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error during write:[/red] {e}")
+        sys.exit(1)
+
+    console.print(f"[green]✓ Wrote[/green] {target}")
+    console.print(
+        f"  APIs: {skill.api_count} · "
+        f"selectors touched: {skill.selector_count}"
+    )
+    console.print(
+        "\n[dim]Next steps:[/dim] "
+        f"[cyan]cd {out_repo}[/cyan] && [cyan]git checkout -b skill-{target.parent.name}-{task}[/cyan] "
+        "&& open a PR."
+    )
     console.print()
 
 

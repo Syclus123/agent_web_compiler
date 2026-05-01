@@ -50,6 +50,11 @@ dependencies = [
 
 [project.optional-dependencies]
 browser = ["playwright>=1.40"]
+# browser-harness attaches to the user's running Chrome over CDP. Unlike the
+# 'browser' extra (Playwright, isolated Chromium), 'harness' reuses the user's
+# real session — logged-in SaaS pages, cookies, and fingerprint. See
+# https://github.com/browser-use/browser-harness
+harness = ["browser-harness>=0.1"]
 pdf = ["pymupdf>=1.24"]
 docx = ["python-docx>=1.0"]
 docling = ["docling>=2.0"]
@@ -62,7 +67,7 @@ dev = [
     "mypy>=1.10",
 ]
 all = [
-    "agent-web-compiler[browser,pdf,docx,serve,dev]",
+    "agent-web-compiler[browser,harness,pdf,docx,serve,dev]",
 ]
 
 [project.scripts]

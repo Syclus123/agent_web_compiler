@@ -124,6 +124,7 @@ def compile_url(
     include_provenance: bool = True,
     debug: bool = False,
     timeout: float = 30.0,
+    fetcher: object | str | None = None,
     config: CompileConfig | None = None,
 ) -> AgentDocument:
     """Fetch a URL and compile it into an AgentDocument.
@@ -136,6 +137,13 @@ def compile_url(
         include_provenance: Whether to include provenance tracking.
         debug: Whether to include debug metadata.
         timeout: HTTP fetch timeout in seconds.
+        fetcher: Optional fetcher override. Accepts either a fetcher instance
+            (anything with ``fetch_sync(url, config) -> FetchResult``) or a
+            short name resolved by
+            :func:`agent_web_compiler.sources.resolve_fetcher`
+            (``"http"`` / ``"playwright"`` / ``"browser_harness"``). Defaults
+            to :class:`HTTPFetcher`. Pass ``"browser_harness"`` to route
+            through the user's real Chrome via browser-harness.
         config: Full config object (overrides individual params if provided).
 
     Returns:
@@ -155,20 +163,32 @@ def compile_url(
             timeout_seconds=timeout,
         )
 
-    from agent_web_compiler.sources.http_fetcher import HTTPFetcher
+    if fetcher is None:
+        from agent_web_compiler.sources.http_fetcher import HTTPFetcher
 
-    fetcher = HTTPFetcher()
-    result = fetcher.fetch_sync(url, config)
+        resolved_fetcher: object = HTTPFetcher()
+    elif isinstance(fetcher, str):
+        from agent_web_compiler.sources import resolve_fetcher
 
-    if not isinstance(result.content, str):
+        resolved_fetcher = resolve_fetcher(fetcher)
+    else:
+        resolved_fetcher = fetcher
+
+    # Typed as object because pluggable fetchers aren't required to be a subclass.
+    result = resolved_fetcher.fetch_sync(url, config)  # type: ignore[attr-defined]
+
+    content = result.content
+    if isinstance(content, bytes):
+        content = content.decode("utf-8", errors="replace")
+    elif not isinstance(content, str):
         raise FetchError(
-            f"Expected text content from {url}, got bytes",
+            f"Expected text content from {url}, got {type(content).__name__}",
             context={"url": url, "content_type": result.content_type},
         )
 
     return compile_html(
-        result.content,
-        source_url=url,
+        content,
+        source_url=result.url or url,
         config=config,
     )
 
